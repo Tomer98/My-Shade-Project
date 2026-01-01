@@ -1,0 +1,165 @@
+/* מיכל המפה הראשי */
+.campus-map-container {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* איזור המפה והתמונה */
+.map-wrapper {
+    position: relative;
+    width: 100%;
+    /* שינוי 1: הקטנת הגובה כדי שלא יתפוס את כל המסך */
+    height: 450px; 
+    background: #f0f2f5;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #eee;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+}
+
+/* תמונת המפה */
+.main-map-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    /* object-fit: contain - מבטיח שרואים את כל המפה בתוך הגובה החדש */
+    object-fit: contain; 
+    object-position: center;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* קונטיינר של הפין (הנקודה על המפה) */
+.map-pin-container {
+    position: absolute;
+    /* שינוי 2: מזיזים את הפין למעלה (-100%) כדי שהשפיץ ייגע בנקודה */
+    transform: translate(-50%, -100%); 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    transition: top 0.1s, left 0.1s; /* תזוזה חלקה בגרירה */
+}
+
+/* --- עיצוב הפין החדש (צורת טיפה) --- */
+.map-pin {
+    width: 34px;
+    height: 34px;
+    /* יוצר את צורת הטיפה */
+    border-radius: 50% 50% 50% 0;
+    border: 3px solid white;
+    box-shadow: -3px 3px 8px rgba(0,0,0,0.4);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* הטרנזישן חשוב לאנימציית הגדילה בעריכה */
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* הנקודה הלבנה בתוך הפין */
+.map-pin::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+}
+
+/* אפקט הדופק (Pulse) - מותאם לצורה החדשה */
+.pin-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    border-radius: 50% 50% 50% 0; /* אותה צורה כמו הפין */
+    opacity: 0.6;
+    z-index: -1;
+    animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+    0% { transform: scale(1); opacity: 0.6; }
+    70% { transform: scale(2); opacity: 0; }
+    100% { transform: scale(1); opacity: 0; }
+}
+
+/* בועת המידע (Tooltip) */
+.pin-tooltip {
+    position: absolute;
+    /* הרמנו את הבועה קצת יותר למעלה בגלל שהפין גבוה יותר */
+    bottom: 45px; 
+    background: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(5px);
+    transition: all 0.2s ease;
+    z-index: 20;
+}
+
+.pin-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* כפתורי אדמין */
+.admin-toolbar {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.admin-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.admin-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* מקרא למטה */
+.map-legend {
+    display: flex;
+    gap: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    font-size: 0.9rem;
+    color: #555;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}

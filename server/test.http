@@ -1,0 +1,18 @@
+### בדיקה 1: שליחת נתוני חיישן (כאילו אנחנו החיישן)
+POST http://localhost:3001/api/sensors/data
+Content-Type: application/json
+
+{
+    "area_id": 1,
+    "temperature": 25.0,
+    "light_intensity": 800
+}
+
+{
+    "area_id": 2,
+    "temperature": 32.5,
+    "light_intensity": 400
+}
+
+### בדיקה 2: קריאת הנתונים ששמרנו
+GET http://localhost:3001/api/sensors/history/1
