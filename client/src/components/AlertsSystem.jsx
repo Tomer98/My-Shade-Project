@@ -1,195 +1,172 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import './AlertsSystem.css';
 
 const AlertsSystem = ({ user, areas }) => {
     const [alerts, setAlerts] = useState([]);
     const [maintenanceUsers, setMaintenanceUsers] = useState([]);
-    
-    // טופס יצירה
     const [newAlert, setNewAlert] = useState({ area_id: '', description: '', priority: 'Medium' });
-    const [msg, setMsg] = useState('');
+    const [message, setMessage] = useState({ text: '', type: '' }); // For success/error messages
+    const [loading, setLoading] = useState(true);
 
-    // טעינת נתונים
+    const API_URL = 'http://localhost:3001/api';
+
     const fetchAlerts = async () => {
         try {
-            const res = await axios.get('http://localhost:3001/api/alerts');
+            const res = await axios.get(`${API_URL}/alerts`);
             if (res.data.success) setAlerts(res.data.data);
-        } catch (err) { console.error("Error fetching alerts"); }
+        } catch (err) {
+            setMessage({ text: 'Failed to fetch alerts.', type: 'error' });
+        }
     };
 
-    // שליפת משתמשי תחזוקה (כדי שאדמין יוכל להקצות משימות)
     const fetchMaintenanceStaff = async () => {
         if (user.role !== 'admin') return;
         try {
-            const res = await axios.get('http://localhost:3001/api/users');
+            const res = await axios.get(`${API_URL}/users`);
             if (res.data.success) {
-                // סינון ידני: רק מי שהוא maintenance או admin
                 const staff = res.data.data.filter(u => u.role === 'maintenance' || u.role === 'admin');
                 setMaintenanceUsers(staff);
             }
-        } catch (err) { console.error("Error fetching staff"); }
+        } catch (err) {
+            setMessage({ text: 'Failed to fetch staff.', type: 'error' });
+        }
     };
 
     useEffect(() => {
-        fetchAlerts();
-        fetchMaintenanceStaff();
+        setLoading(true);
+        Promise.all([fetchAlerts(), fetchMaintenanceStaff()]).finally(() => setLoading(false));
     }, []);
 
-    // יצירת התראה חדשה
     const handleCreate = async (e) => {
         e.preventDefault();
-        if (!newAlert.area_id) return alert('נא לבחור חדר');
+        if (!newAlert.area_id) {
+            setMessage({ text: 'Please select a room.', type: 'error' });
+            return;
+        }
         
         try {
-            await axios.post('http://localhost:3001/api/alerts', {
-                ...newAlert,
-                created_by: user.id
-            });
-            setMsg('✅ התראה נשלחה בהצלחה!');
+            await axios.post(`${API_URL}/alerts`, { ...newAlert, created_by: user.id });
+            setMessage({ text: 'Alert created successfully!', type: 'success' });
             setNewAlert({ area_id: '', description: '', priority: 'Medium' });
-            fetchAlerts(); // רענון הרשימה
-            setTimeout(() => setMsg(''), 3000);
-        } catch (err) { alert('שגיאה ביצירת התראה'); }
+            fetchAlerts();
+            setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+        } catch (err) {
+            setMessage({ text: 'Error creating alert.', type: 'error' });
+        }
     };
 
-    // עדכון סטטוס / הקצאה
     const handleUpdate = async (alertId, updates) => {
         try {
-            await axios.put(`http://localhost:3001/api/alerts/${alertId}`, updates);
+            await axios.put(`${API_URL}/alerts/${alertId}`, updates);
             fetchAlerts();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            setMessage({ text: 'Failed to update alert.', type: 'error' });
+        }
     };
 
-    // מחיקה (רק לאדמין)
     const handleDelete = async (alertId) => {
-        if (!window.confirm('למחוק התראה זו?')) return;
+        if (!window.confirm('Are you sure you want to delete this alert?')) return;
         try {
-            await axios.delete(`http://localhost:3001/api/alerts/${alertId}`);
+            await axios.delete(`${API_URL}/alerts/${alertId}`);
             fetchAlerts();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            setMessage({ text: 'Failed to delete alert.', type: 'error' });
+        }
     };
 
-    // פונקציות עזר לצבעים
-    const getPriorityColor = (p) => {
-        if (p === 'Critical') return '#e74c3c'; // אדום
-        if (p === 'High') return '#e67e22';     // כתום
-        return '#f1c40f';                       // צהוב
+    const getPriorityStyle = (p) => {
+        if (p === 'Critical') return { borderRightColor: '#e74c3c' };
+        if (p === 'High') return { borderRightColor: '#e67e22' };
+        return { borderRightColor: '#f1c40f' };
     };
+
+    const getStatusClass = (s) => {
+        if (s === 'Resolved') return 'alert-status-resolved';
+        if (s === 'Acknowledged') return 'alert-status-acknowledged';
+        return 'alert-status-open';
+    }
 
     return (
-        <div className="fade-in" style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-            
-            {/* --- חלק 1: טופס דיווח (לכולם) --- */}
-            <div style={{ background: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
-                <h3 style={{ marginTop: 0, color: '#2c3e50' }}>📢 דיווח על תקלה חדשה</h3>
-                <form onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '15px', alignItems: 'end' }}>
+        <div className="fade-in alerts-container">
+            <div className="create-alert-form-container">
+                <h3>📢 Report a New Issue</h3>
+                <form onSubmit={handleCreate} className="create-alert-form">
                     <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>חדר / אזור:</label>
-                        <select 
-                            value={newAlert.area_id} 
-                            onChange={e => setNewAlert({...newAlert, area_id: e.target.value})}
-                            style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
-                            required
-                        >
-                            <option value="">בחר חדר...</option>
-                            {areas.map(area => <option key={area.id} value={area.id}>{area.room}</option>)}
+                        <label>Room / Area:</label>
+                        <select value={newAlert.area_id} onChange={e => setNewAlert({...newAlert, area_id: e.target.value})} required>
+                            <option value="">Select a room...</option>
+                            {areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>תיאור התקלה:</label>
-                        <input 
-                            type="text" 
-                            value={newAlert.description} 
-                            onChange={e => setNewAlert({...newAlert, description: e.target.value})}
-                            placeholder="לדוגמה: וילון תקוע..."
-                            style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} 
-                            required 
-                        />
+                        <label>Description:</label>
+                        <input type="text" value={newAlert.description} onChange={e => setNewAlert({...newAlert, description: e.target.value})} placeholder="e.g., Shade is stuck..." required />
                     </div>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>דחיפות:</label>
-                        <select 
-                            value={newAlert.priority} 
-                            onChange={e => setNewAlert({...newAlert, priority: e.target.value})}
-                            style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
-                        >
-                            <option value="Low">נמוכה</option>
-                            <option value="Medium">רגילה</option>
-                            <option value="High">גבוהה</option>
-                            <option value="Critical">קריטית 🔥</option>
+                        <label>Priority:</label>
+                        <select value={newAlert.priority} onChange={e => setNewAlert({...newAlert, priority: e.target.value})}>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical 🔥</option>
                         </select>
                     </div>
-                    <button type="submit" style={{ padding: '10px 20px', background: '#3498db', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>שלח דיווח</button>
+                    <button type="submit">Submit Report</button>
                 </form>
-                {msg && <p style={{ color: 'green', marginTop: '10px', fontWeight: 'bold' }}>{msg}</p>}
+                {message.text && <p style={{ color: message.type === 'error' ? 'red' : 'green' }} className="form-message">{message.text}</p>}
             </div>
 
-            {/* --- חלק 2: רשימת התראות (בעיקר לאדמין ותחזוקה) --- */}
-            <h3 style={{ color: '#2c3e50', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>📋 רשימת תקלות פעילות</h3>
+            <h3 className="alerts-list-header">📋 Active Issues List</h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {alerts.length === 0 && <p style={{ color: '#aaa', textAlign: 'center' }}>אין תקלות פתוחות. מצוין! 🎉</p>}
-                
-                {alerts.map(alert => (
-                    <div key={alert.id} style={{ 
-                        background: 'white', padding: '15px', borderRadius: '8px', borderRight: `5px solid ${getPriorityColor(alert.priority)}`,
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                    }}>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                                <strong style={{ fontSize: '1.1rem' }}>{alert.room_name}</strong>
-                                <span style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: '#eee', color: '#555' }}>{alert.priority}</span>
-                                <span style={{ fontSize: '0.8rem', color: '#999' }}>דווח ע"י: {alert.created_by_name}</span>
+            {loading ? <p>Loading alerts...</p> : (
+                <div className="alerts-list">
+                    {alerts.length === 0 && <p className="no-alerts-message">No open issues. Great! 🎉</p>}
+                    
+                    {alerts.map(alert => (
+                        <div key={alert.id} className="alert-card" style={getPriorityStyle(alert.priority)}>
+                            <div className="alert-card-content">
+                                <div className="alert-details">
+                                    <strong>{alert.room_name}</strong>
+                                    <span className="alert-priority-badge">{alert.priority}</span>
+                                    <span className="alert-reporter">Reported by: {alert.created_by_name}</span>
+                                </div>
+                                <p className="alert-description">{alert.description}</p>
+                                <div className="alert-status-section">
+                                    <strong>Status: </strong> 
+                                    <span className={getStatusClass(alert.status)}>
+                                        {alert.status === 'Open' ? 'Open (Pending)' : alert.status === 'Acknowledged' ? 'In Progress' : 'Resolved ✅'}
+                                    </span>
+                                    {alert.assigned_to_name && <span className="alert-assignee">| Assigned to: 👷 {alert.assigned_to_name}</span>}
+                                </div>
                             </div>
-                            <div style={{ color: '#555' }}>{alert.description}</div>
-                            <div style={{ marginTop: '8px', fontSize: '0.85rem' }}>
-                                <strong>סטטוס: </strong> 
-                                <span style={{ color: alert.status === 'Resolved' ? 'green' : alert.status === 'Acknowledged' ? 'orange' : 'red' }}>
-                                    {alert.status === 'Open' ? 'פתוח (ממתין לטיפול)' : alert.status === 'Acknowledged' ? 'בטיפול' : 'טופל ✅'}
-                                </span>
-                                {alert.assigned_to_name && <span style={{ marginRight: '10px' }}> | מטפל: 👷 {alert.assigned_to_name}</span>}
-                            </div>
+
+                            {(user.role === 'admin' || user.role === 'maintenance') && (
+                                <div className="alert-actions">
+                                    {user.role === 'admin' && alert.status !== 'Resolved' && (
+                                        <select onChange={(e) => handleUpdate(alert.id, { assigned_to: e.target.value })} value={alert.assigned_to_id || ""}>
+                                            <option value="" disabled>Assign to staff...</option>
+                                            {maintenanceUsers.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+                                        </select>
+                                    )}
+
+                                    {alert.status !== 'Resolved' && (
+                                        <button className="resolve-btn" onClick={() => handleUpdate(alert.id, { status: 'Resolved' })}>
+                                            ✅ Mark as Resolved
+                                        </button>
+                                    )}
+
+                                    {user.role === 'admin' && (
+                                        <button className="delete-btn" onClick={() => handleDelete(alert.id)}>
+                                            🗑️ Delete
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
-
-                        {/* כפתורי שליטה (רק לאדמין ותחזוקה) */}
-                        {(user.role === 'admin' || user.role === 'maintenance') && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: '150px' }}>
-                                {/* הקצאת משימה (Admin Only) */}
-                                {user.role === 'admin' && alert.status !== 'Resolved' && (
-                                    <select 
-                                        onChange={(e) => handleUpdate(alert.id, { assigned_to: e.target.value })}
-                                        style={{ padding: '5px', borderRadius: '4px', fontSize: '0.8rem' }}
-                                        value={alert.assigned_to_id || ""}
-                                    >
-                                        <option value="" disabled>שייך לאיש צוות...</option>
-                                        {maintenanceUsers.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
-                                    </select>
-                                )}
-
-                                {/* כפתור סיום טיפול */}
-                                {alert.status !== 'Resolved' && (
-                                    <button 
-                                        onClick={() => handleUpdate(alert.id, { status: 'Resolved' })}
-                                        style={{ padding: '5px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                    >
-                                        ✅ סמן כטופל
-                                    </button>
-                                )}
-
-                                {/* מחיקה (Admin Only) */}
-                                {user.role === 'admin' && (
-                                    <button 
-                                        onClick={() => handleDelete(alert.id)}
-                                        style={{ padding: '5px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                    >
-                                        🗑️ מחק
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

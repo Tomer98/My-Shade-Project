@@ -1,0 +1,159 @@
+.alerts-container {
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box; /* Ensure padding is included in the width */
+}
+
+.create-alert-form-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+}
+
+.create-alert-form-container h3 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.create-alert-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.create-alert-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.create-alert-form input,
+.create-alert-form select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.create-alert-form button {
+    padding: 10px 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    grid-column: -1; /* Place button at the end */
+}
+
+.form-message {
+    color: green;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.alerts-list-header {
+    color: #2c3e50;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.no-alerts-message {
+    color: #aaa;
+    text-align: center;
+    padding: 20px;
+}
+
+.alert-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-card-content {
+    flex: 1;
+}
+
+.alert-details {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.alert-details strong {
+    font-size: 1.1rem;
+}
+
+.alert-priority-badge {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #eee;
+    color: #555;
+}
+
+.alert-reporter {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.alert-description {
+    color: #555;
+}
+
+.alert-status-section {
+    margin-top: 8px;
+    font-size: 0.85rem;
+}
+
+.alert-status-open { color: red; }
+.alert-status-acknowledged { color: orange; }
+.alert-status-resolved { color: green; }
+
+.alert-assignee {
+    margin-right: 10px; /* In RTL, this is left margin */
+}
+
+.alert-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.alert-actions select,
+.alert-actions button {
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+
+.alert-actions .resolve-btn {
+    background: #2ecc71;
+    color: white;
+    border-color: #2ecc71;
+}
+
+.alert-actions .delete-btn {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}

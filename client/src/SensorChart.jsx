@@ -1,22 +1,22 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// --- רכיב נקודה מותאם אישית (הקסם קורה כאן) ---
-// הרכיב הזה מחליט איזה צבע תהיה הנקודה על הגרף לפי מצב הוילון באותו רגע
+// --- Custom Dot Component ---
+// This component determines the color of the dot on the graph based on the shade's position at that time.
 const CustomizedDot = (props) => {
-    const { cx, cy, payload } = props; // payload מכיל את כל המידע של אותה נקודת זמן
+    const { cx, cy, payload } = props; // payload contains all the data for that point in time
 
-    // לוגיקת צבעים
-    let fill = '#ffa726'; // כתום (ברירת מחדל / חלקי)
+    // Color logic
+    let fill = '#ffa726'; // Orange (default / partial)
     let stroke = '#fff';
     
     if (payload.current_position === 0) {
-        fill = '#66bb6a'; // ירוק = פתוח (אור טבעי)
+        fill = '#66bb6a'; // Green = Open (natural light)
     } else if (payload.current_position === 100) {
-        fill = '#ef5350'; // אדום = סגור (הגנה)
+        fill = '#ef5350'; // Red = Closed (protection)
     }
 
-    // ציור הנקודה
+    // Render the dot
     return (
         <svg x={cx - 6} y={cy - 6} width={12} height={12} fill="none" viewBox="0 0 12 12">
             <circle cx="6" cy="6" r="5" fill={fill} stroke={stroke} strokeWidth="2" />
@@ -24,8 +24,8 @@ const CustomizedDot = (props) => {
     );
 };
 
-// --- טולטיפ מותאם אישית ---
-// כשעומדים עם העכבר, נראה פירוט מלא
+// --- Custom Tooltip ---
+// Shows detailed information on hover.
 const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
@@ -35,10 +35,10 @@ const CustomTooltip = ({ active, payload, label }) => {
                     {new Date(data.recorded_at).toLocaleTimeString()}
                 </p>
                 <p style={{ margin: '5px 0', color: '#ff7300' }}>
-                    🌡️ טמפרטורה: <strong>{data.temperature}°C</strong>
+                    🌡️ Temperature: <strong>{data.temperature}°C</strong>
                 </p>
                 <p style={{ margin: 0, color: data.current_position === 100 ? '#ef5350' : '#66bb6a' }}>
-                    🪟 וילון: <strong>{data.current_position === 0 ? 'פתוח' : data.current_position === 100 ? 'סגור' : `${data.current_position}%`}</strong>
+                    🪟 Shade: <strong>{data.current_position === 0 ? 'Open' : data.current_position === 100 ? 'Closed' : `${data.current_position}%`}</strong>
                 </p>
             </div>
         );
@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const SensorChart = ({ data }) => {
-  // היפוך המערך (משמאל לימין)
+  // Reverse the array to show from left to right
   const chartData = [...data].reverse();
 
   const formatTime = (isoString) => {
@@ -57,9 +57,9 @@ const SensorChart = ({ data }) => {
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <div style={{ textAlign: 'center', marginBottom: '10px', fontSize: '0.9rem', color: '#666', display: 'flex', justifyContent: 'center', gap: '15px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#66bb6a', borderRadius: '50%'}}></span> וילון פתוח</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#ef5350', borderRadius: '50%'}}></span> וילון סגור</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#ffa726', borderRadius: '50%'}}></span> מצב ביניים</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#66bb6a', borderRadius: '50%'}}></span> Shade Open</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#ef5350', borderRadius: '50%'}}></span> Shade Closed</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{width: 10, height: 10, background: '#ffa726', borderRadius: '50%'}}></span> Intermediate</span>
       </div>
       
       <ResponsiveContainer width="100%" height="85%">
@@ -82,13 +82,13 @@ const SensorChart = ({ data }) => {
           
           <Tooltip content={<CustomTooltip />} />
           
-          {/* הקו עצמו - כתום עדין */}
+          {/* The line itself - a gentle orange */}
           <Line 
             type="monotone" 
             dataKey="temperature" 
             stroke="#ff7300" 
             strokeWidth={3}
-            dot={<CustomizedDot />} // כאן אנחנו מחליפים את הנקודות הרגילות ברכיב החכם שלנו
+            dot={<CustomizedDot />} // Here we replace the default dots with our smart component
             activeDot={{ r: 8 }}
             animationDuration={500}
           />

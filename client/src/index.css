@@ -3,20 +3,19 @@
   line-height: 1.5;
   font-weight: 400;
   
-  /* מגדיר כיוון כתיבה מימין לשמאל - קריטי לעברית */
-  direction: rtl; 
+  /* Set text direction to left-to-right for English UI */
+  direction: ltr; 
 }
 
 body {
   margin: 0;
   padding: 0;
-  /* ביטלנו את ה-flex ואת ה-place-items שהיו כאן */
   width: 100%;
   min-height: 100vh;
-  background-color: #f4f6f8; /* צבע הרקע האפור הבהיר מהעיצוב שלך */
+  background-color: #f4f6f8; /* Light gray background from the design */
 }
 
-/* מוודא שהאפליקציה עצמה תופסת את כל הרוחב */
+/* Ensure the app itself takes up the full width */
 #root {
   width: 100%;
   margin: 0 auto;
