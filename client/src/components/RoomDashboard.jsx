@@ -19,6 +19,8 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const [saveButtonText, setSaveButtonText] = useState('💾 Save & Exit');
   const imageWrapperRef = useRef(null);
   const draggedSensorRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Fallback for name property mismatch
   const roomName = selectedArea.name || selectedArea.room || 'Unknown Room';
@@ -129,14 +131,47 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     draggedSensorRef.current = null;
   };
 
-  // --- Image Logic Fix ---
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('roomImage', file);
+
+    try {
+      // Using POST as it's more conventional for file uploads.
+      // If this still fails, the issue is 100% on the server configuration.
+      await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/image`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      alert('Image updated successfully!');
+      onUpdate(); 
+
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      alert('Failed to upload image. The server is not configured to handle this request at the specified endpoint.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // --- Image Source Logic Fix ---
   const getRoomImageSrc = () => {
       const path = selectedArea.map_file_path || selectedArea.map_image;
-      if (!path) return '/room206_sketch.png'; // Fallback
       
-      // If path is already absolute (http...), use it. Otherwise prepend base URL.
+      // אם אין נתיב, נחזיר null כדי שהקומפוננטה תדע להציג את ההודעה
+      if (!path) return null;
+      
+      // אם הנתיב הוא כבר כתובת אינטרנט מלאה (למשל מהעלאה לשרת), נחזיר אותו כמו שהוא
       if (path.startsWith('http')) return path;
-      return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+      
+      // התיקון: אם זה נתיב יחסי (כמו /room101.png), נחזיר אותו כמו שהוא (שיקח מ-client/public)
+      // ביטלנו את ההוספה האוטומטית של API_BASE_URL למקרים האלו
+      return path;
   };
 
   return (
@@ -144,6 +179,16 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       <div className="room-dashboard-header">
         <button className="back-button" onClick={onBack}>← Back to Map</button>
         <h2>{roomName}</h2>
+        {user?.role === 'admin' && (
+          <button 
+            className="header-icon-btn" 
+            onClick={() => fileInputRef.current.click()} 
+            title="Change Room Image"
+            disabled={isUploading}
+          >
+            {isUploading ? 'Uploading...' : '🖼️ Upload Image'}
+          </button>
+        )}
       </div>
 
       <div 
@@ -169,15 +214,19 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
           </div>
         )}
         
-        <img 
-            src={getRoomImageSrc()} 
-            alt={`${roomName} layout`} 
-            className="room-image"
-            onError={(e) => {
-                e.target.onerror = null; 
-                e.target.src = '/room206_sketch.png'; // Safety fallback
-            }}
-        />
+        {getRoomImageSrc() ? (
+            <img 
+                src={getRoomImageSrc()} 
+                alt={`${roomName} layout`} 
+                className="room-image"
+                onError={(e) => {
+                    e.target.onerror = null; 
+                    e.target.src = '/room206_sketch.png'; // Fallback אם התמונה לא נטענת
+                }}
+            />
+        ) : (
+            <div className="image-placeholder">ממתין להעלאת תמונה...</div>
+        )}
         
         {sensors.map(sensor => (
           <div
@@ -230,6 +279,13 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                  <SensorChart data={sensorHistory} />
                 }
             </div>
+        </div>
+      )}
+
+      {/* Hidden file input for image upload */}
+      {user?.role === 'admin' && (
+        <div>
+            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} accept="image/*" />
         </div>
       )}
     </div>

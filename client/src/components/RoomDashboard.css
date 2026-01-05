@@ -1,3 +1,32 @@
+/* הוסף לקובץ RoomDashboard.css */
+
+.room-dashboard-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.room-dashboard-header h2 {
+    flex-grow: 1; /* גורם לכותרת לתפוס את המקום הפנוי */
+}
+
+.header-icon-btn {
+    background-color: #e8eef3;
+    border: 1px solid #d1d9e2;
+    color: #334155;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.header-icon-btn:hover {
+    background-color: #dbe4f0;
+    border-color: #b9c5d4;
+    transform: translateY(-1px);
+}
 /* Floating toolbar for admin controls */
 .floating-toolbar {
   position: absolute;
@@ -166,4 +195,20 @@
   font-size: 1.5rem;
   cursor: pointer;
   color: #888;
+}
+
+/* עיצוב להודעה שמחליפה את התמונה החסרה */
+.image-placeholder {
+  width: 90%;
+  height: 90%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 12px;
+  color: #6c757d;
+  font-size: 1.2rem;
+  font-weight: 500;
+  text-align: center;
 }

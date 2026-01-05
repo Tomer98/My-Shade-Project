@@ -165,27 +165,29 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
 
     return (
         <div className="map-scroll-wrapper">
+            {user?.role === 'admin' && (
+                <div 
+                    className="floating-toolbar" 
+                    onClick={(e) => e.stopPropagation()} /* עוצר את התפשטות הלחיצה ומונע את הבאג */
+                >
+                    {!isMapEditing ? (
+                        <button onClick={() => setIsMapEditing(true)}>✏️ Edit Map</button>
+                    ) : (
+                        <>
+                            <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')}>➕ Add</button>
+                            <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')}>✋ Move</button>
+                            <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')}>🗑️ Delete</button>
+                            <button onClick={handleSaveAndExit}>💾 Exit Edit</button>
+                        </>
+                    )}
+                </div>
+            )}
             <div
                 ref={mapWrapperRef}
                 className="map-image-wrapper"
                 onClick={handleMapClick}
                 style={{ cursor: editMode === 'add' ? 'crosshair' : 'default' }}
             >
-                {user?.role === 'admin' && (
-                    <div className="floating-toolbar">
-                        {!isMapEditing ? (
-                            <button onClick={() => setIsMapEditing(true)}>✏️ Edit Map</button>
-                        ) : (
-                            <>
-                                <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')}>➕ Add</button>
-                                <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')}>✋ Move</button>
-                                <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')}>🗑️ Delete</button>
-                                <button onClick={handleSaveAndExit}>💾 Exit Edit</button>
-                            </>
-                        )}
-                    </div>
-                )}
-
                 <img src="/campus_map.png" alt="Campus Map" className="main-map-image" />
 
                 {areas.map((area) => {
@@ -196,18 +198,14 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                     return (
                         <div
                             key={area.id}
-                            className="map-pin"
+                            className={`map-pin ${draggingId === area.id ? 'dragging' : ''}`}
                             style={{
                                 position: 'absolute',
                                 top: `${parseCoord(coords.top)}%`,
                                 left: `${parseCoord(coords.left)}%`,
-                                transform: 'translate(-50%, -100%)',
-                                zIndex: draggingId === area.id ? 102 : 1000,
+                                zIndex: draggingId === area.id ? 1002 : 1000,
                                 cursor: isMapEditing ? (editMode === 'move' ? 'grab' : (editMode === 'delete' ? 'pointer' : 'default')) : 'pointer',
-                                backgroundColor: getShadeColor(area.current_position),
-                                display: 'flex',       
-                                alignItems: 'center',  
-                                justifyContent: 'center' 
+                                '--pin-color': getShadeColor(area.current_position),
                             }}
                             onMouseDown={(e) => handleMouseDown(e, area)}
                             onClick={(e) => {
@@ -219,7 +217,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                                 }
                             }}
                         >
-                            {isDeleting && <span className="pin-delete-icon">🗑️</span>}
+                            {isDeleting ? <span className="pin-delete-icon">🗑️</span> : <div className="pin-inner-dot"></div>}
                             <div className="pin-tooltip">{displayName}</div>
                         </div>
                     );

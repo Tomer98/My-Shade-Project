@@ -175,26 +175,29 @@ function App() {
         </div>
 
         {/* Right Side: Sidebar (Log/Alerts) */}
-        <div className="sidebar-section-container">
-            <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-                <h3 style={{ margin: 0, color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ width: '10px', height: '10px', background: '#e74c3c', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #e74c3c' }}></span>
-                    Live Activity Log
-                </h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '10px' }}>
-                {globalLogs.map((log, index) => (
-                    <div key={index} style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '0.9rem' }}>
-                        <div style={{ fontWeight: 'bold', color: '#34495e', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{log.room}</span>
-                            <span style={{ fontSize: '0.75rem', color: '#95a5a6' }}>{new Date(log.recorded_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+        {/* ה-Sidebar יוצג רק במסך הראשי (כאשר לא נבחר חדר, ניהול משתמשים או התראות) */}
+        {!selectedArea && !showUserManagement && !showAlerts && (
+            <div className="sidebar-section-container">
+                <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
+                    <h3 style={{ margin: 0, color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ width: '10px', height: '10px', background: '#e74c3c', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #e74c3c' }}></span>
+                        Live Activity Log
+                    </h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '10px' }}>
+                    {globalLogs.map((log, index) => (
+                        <div key={index} style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '0.9rem' }}>
+                            <div style={{ fontWeight: 'bold', color: '#34495e', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>{log.room}</span>
+                                <span style={{ fontSize: '0.75rem', color: '#95a5a6' }}>{new Date(log.recorded_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                            </div>
+                            <div style={{ marginTop: '5px', color: '#555' }}>{getLogMessage(log)}</div>
                         </div>
-                        <div style={{ marginTop: '5px', color: '#555' }}>{getLogMessage(log)}</div>
-                    </div>
-                ))}
-                {globalLogs.length === 0 && <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>No activity yet...</div>}
+                    ))}
+                    {globalLogs.length === 0 && <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>No activity yet...</div>}
+                </div>
             </div>
-        </div>
+        )}
       </div>
     </div>
   );

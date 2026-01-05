@@ -98,8 +98,9 @@ exports.getAllAreas = async (req, res) => {
 exports.createArea = async (req, res) => {
     try {
         let { room, description, map_coordinates } = req.body;
-        
-        let imagePath = '/room206_sketch.png'; 
+
+        // התיקון: במקום תמונת ברירת מחדל, נשמור NULL כדי שהממשק יציג הודעה מתאימה
+        let imagePath = null; 
         
         if (req.file) {
             imagePath = `${BASE_URL}/uploads/${req.file.filename}`;
@@ -256,5 +257,33 @@ exports.updateGlobalState = async (req, res) => {
     } catch (error) {
         console.error('Global Update Error:', error);
         res.status(500).json({ success: false, message: 'Failed to update global state.' });
+    }
+};
+
+// --- הוסף את זה בסוף הקובץ ---
+
+// עדכון תמונת מפה לחדר קיים
+exports.uploadMapImage = async (req, res) => {
+    const { id } = req.params;
+
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No image file provided.' });
+    }
+
+    try {
+        // בניית הנתיב החדש לקובץ
+        const imagePath = `${BASE_URL}/uploads/${req.file.filename}`;
+
+        // עדכון בסיס הנתונים
+        const [result] = await db.query('UPDATE areas SET map_file_path = ? WHERE id = ?', [imagePath, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Area not found.' });
+        }
+
+        res.json({ success: true, message: 'Map image updated successfully.', imagePath });
+    } catch (error) {
+        console.error("Upload Image Error:", error);
+        res.status(500).json({ success: false, message: 'Failed to upload image.' });
     }
 };
