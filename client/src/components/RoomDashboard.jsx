@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import SensorChart from '../SensorChart';
+import SensorChart from './SensorChart';
 import { getShadeColor } from '../utils/getShadeColor';
 import './RoomDashboard.css';
 
@@ -9,24 +9,38 @@ const API_BASE_URL = 'http://localhost:3001';
 const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const [sensors, setSensors] = useState([]);
   const [shadePosition, setShadePosition] = useState(selectedArea.current_position || 0);
+  
+  // מצבי עריכה
   const [isSensorEditing, setIsSensorEditing] = useState(false);
   const [sensorEditMode, setSensorEditMode] = useState('none'); 
   
+  // גרפים והיסטוריה
   const [showGraph, setShowGraph] = useState(false);
   const [sensorHistory, setSensorHistory] = useState(null); 
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // UI States
   const [saveButtonText, setSaveButtonText] = useState('💾 Save & Exit');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSendingCommand, setIsSendingCommand] = useState(false); // אינדיקציה לשליחה
+
+  // --- סימולציה (Testing Mode) ---
+  const [simTemp, setSimTemp] = useState(25);
+  const [simLight, setSimLight] = useState(50);
+
+  // Refs
   const imageWrapperRef = useRef(null);
   const draggedSensorRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [isUploading, setIsUploading] = useState(false);
 
-  // Fallback for name property mismatch
   const roomName = selectedArea.name || selectedArea.room || 'Unknown Room';
 
+  // סנכרון נתונים כשהחדר מתעדכן (למשל מ-Socket)
   useEffect(() => {
     if (!selectedArea) return;
+
+    // עדכון סליידר הוילון רק אם אנחנו לא באמצע גרירה ידנית שלו (אופציונלי, כאן פשוט נעדכן)
+    setShadePosition(selectedArea.current_position || 0);
 
     // --- Robust Sensor Parsing ---
     let parsedSensors = [];
@@ -35,18 +49,16 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       if (Array.isArray(rawData)) {
         parsedSensors = rawData;
       } else if (typeof rawData === 'string') {
-        // Handle potential double-stringified JSON
         const cleaned = rawData.startsWith('"') ? JSON.parse(rawData) : rawData;
         parsedSensors = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
       } else {
         parsedSensors = [];
       }
     } catch (e) {
-      console.warn("Sensor parse warning, resetting to empty:", e);
+      console.warn("Sensor parse warning:", e);
       parsedSensors = [];
     }
     setSensors(Array.isArray(parsedSensors) ? parsedSensors : []);
-    setShadePosition(selectedArea.current_position || 0);
   }, [selectedArea]);
 
   useEffect(() => {
@@ -72,6 +84,54 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     }
   }, [showGraph, selectedArea.id]);
 
+  // --- פונקציות שליטה (התיקון החדש) ---
+
+  // 1. שליטה ידנית בוילון
+  const handleManualControl = async () => {
+    setIsSendingCommand(true);
+    try {
+        // קובעים מצב (אם זה 0 או 100 זה OPEN/CLOSED, אחרת MANUAL)
+        let newState = 'MANUAL';
+        if (shadePosition === 0) newState = 'OPEN';
+        if (shadePosition === 100) newState = 'CLOSED';
+
+        await axios.put(`${API_BASE_URL}/api/areas/${selectedArea.id}/state`, {
+            state: newState,
+            position: shadePosition
+        });
+
+        // רענון הנתונים כדי לוודא שה-DB וה-UI מסונכרנים
+        if (onUpdate) onUpdate();
+        alert(`Command Sent: ${newState} at ${shadePosition}%`);
+
+    } catch (error) {
+        console.error("Manual control failed:", error);
+        alert("Failed to send command.");
+    } finally {
+        setIsSendingCommand(false);
+    }
+  };
+
+  // 2. חזרה למצב אוטומטי
+  const handleAutoControl = async () => {
+    setIsSendingCommand(true);
+    try {
+        await axios.put(`${API_BASE_URL}/api/areas/${selectedArea.id}/state`, {
+            state: 'AUTO'
+        });
+
+        if (onUpdate) onUpdate();
+        alert("System reverted to AUTO mode.");
+
+    } catch (error) {
+        console.error("Auto revert failed:", error);
+        alert("Failed to revert to auto.");
+    } finally {
+        setIsSendingCommand(false);
+    }
+  };
+
+  // 3. שמירת מיקומי חיישנים
   const handleSaveLayout = async () => {
     try {
       await axios.put(`${API_BASE_URL}/api/areas/${selectedArea.id}/sensor-positions`, {
@@ -91,6 +151,26 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     }
   };
 
+  // --- סימולציה (מחובר לשרת) ---
+  const handleSimulationUpdate = async () => {
+      try {
+          await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/simulation`, {
+              temperature: simTemp,
+              light: simLight
+          });
+          
+          alert(`Simulated data injected! AI is evaluating...`);
+          
+          // רענון המסך כדי שנראה את השינוי מיד
+          if (onUpdate) onUpdate(); 
+
+      } catch (error) {
+          console.error("Simulation failed:", error);
+          alert("Failed to inject simulation data");
+      }
+  };
+
+  // --- Image & Sensor Dragging Logic ---
   const handleImageClick = (e) => {
     if (sensorEditMode !== 'add') return;
     const rect = imageWrapperRef.current.getBoundingClientRect();
@@ -140,37 +220,23 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     formData.append('roomImage', file);
 
     try {
-      // Using POST as it's more conventional for file uploads.
-      // If this still fails, the issue is 100% on the server configuration.
       await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
       alert('Image updated successfully!');
       onUpdate(); 
-
     } catch (error) {
       console.error('Image upload failed:', error);
-      alert('Failed to upload image. The server is not configured to handle this request at the specified endpoint.');
+      alert('Failed to upload image.');
     } finally {
       setIsUploading(false);
     }
   };
 
-  // --- Image Source Logic Fix ---
   const getRoomImageSrc = () => {
       const path = selectedArea.map_file_path || selectedArea.map_image;
-      
-      // אם אין נתיב, נחזיר null כדי שהקומפוננטה תדע להציג את ההודעה
       if (!path) return null;
-      
-      // אם הנתיב הוא כבר כתובת אינטרנט מלאה (למשל מהעלאה לשרת), נחזיר אותו כמו שהוא
       if (path.startsWith('http')) return path;
-      
-      // התיקון: אם זה נתיב יחסי (כמו /room101.png), נחזיר אותו כמו שהוא (שיקח מ-client/public)
-      // ביטלנו את ההוספה האוטומטית של API_BASE_URL למקרים האלו
       return path;
   };
 
@@ -221,11 +287,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 className="room-image"
                 onError={(e) => {
                     e.target.onerror = null; 
-                    e.target.src = '/room206_sketch.png'; // Fallback אם התמונה לא נטענת
+                    e.target.src = '/room206_sketch.png';
                 }}
             />
         ) : (
-            <div className="image-placeholder">ממתין להעלאת תמונה...</div>
+            <div className="image-placeholder">Waiting for image...</div>
         )}
         
         {sensors.map(sensor => (
@@ -247,22 +313,58 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         ))}
       </div>
 
+      {/* --- אזור השליטה המתוקן --- */}
       <div className="room-dashboard-controls">
+        
+        {/* סטטוס נוכחי */}
         <div className="control-group">
           <label>Shade Status</label>
-          <span className="status-text" style={{ color: getShadeColor(shadePosition) }}>
-            {shadePosition}% {shadePosition > 70 ? 'Closed' : shadePosition < 30 ? 'Open' : 'Partial'}
-          </span>
+          <div className="status-display">
+             <span className="status-text" style={{ color: getShadeColor(shadePosition) }}>
+                {shadePosition}% ({selectedArea.shade_state})
+             </span>
+             {selectedArea.shade_state === 'MANUAL' && <span className="badge-manual">MANUAL</span>}
+             {selectedArea.shade_state === 'AUTO' && <span className="badge-auto">AUTO</span>}
+          </div>
         </div>
+
+        {/* שליטה ידנית */}
         <div className="control-group">
-          <label>Manual Shade Control</label>
+          <label>Manual Control</label>
           <div className="slider-container">
-            <input type="range" min="0" max="100" value={shadePosition} onChange={(e) => setShadePosition(parseInt(e.target.value))} />
+            <input 
+                type="range" min="0" max="100" 
+                value={shadePosition} 
+                onChange={(e) => setShadePosition(parseInt(e.target.value))} 
+            />
             <span>{shadePosition}%</span>
           </div>
-          <button>Send Command</button>
-          <button>Revert to Auto</button>
+          <div className="button-group">
+            <button onClick={handleManualControl} disabled={isSendingCommand}>
+                {isSendingCommand ? 'Sending...' : '⚡ Send Command'}
+            </button>
+            <button onClick={handleAutoControl} className="outline-btn" disabled={isSendingCommand}>
+                🔄 Revert to Auto
+            </button>
+          </div>
         </div>
+
+        {/* --- אזור סימולציה חדש (Test Mode) --- */}
+        <div className="control-group simulation-group" style={{borderTop: '1px solid #444', marginTop: '10px', paddingTop: '10px'}}>
+            <label>🧪 Simulation (Test AI)</label>
+            <div className="sim-controls">
+                <div className="sim-slider">
+                    <span>Temp: {simTemp}°C</span>
+                    <input type="range" min="0" max="50" value={simTemp} onChange={(e) => setSimTemp(parseInt(e.target.value))} />
+                </div>
+                <div className="sim-slider">
+                    <span>Light: {simLight}%</span>
+                    <input type="range" min="0" max="100" value={simLight} onChange={(e) => setSimLight(parseInt(e.target.value))} />
+                </div>
+                <button onClick={handleSimulationUpdate} className="sim-btn">🚀 Inject Data</button>
+            </div>
+        </div>
+
         <div className="control-group">
           <label>Analysis</label>
           <button onClick={() => setShowGraph(true)}>View History</button>
@@ -282,7 +384,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         </div>
       )}
 
-      {/* Hidden file input for image upload */}
       {user?.role === 'admin' && (
         <div>
             <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} accept="image/*" />

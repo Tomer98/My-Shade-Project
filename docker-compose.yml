@@ -1,0 +1,49 @@
+services:
+  # שירות 1: מסד הנתונים MySQL
+  mysqldb:
+    image: mysql:8.0
+    container_name: shade_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password123
+      MYSQL_DATABASE: shade_system_test
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./shade_system_test.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # שירות 2: שרת ה-Backend (Node.js)
+  server:
+    build: ./server
+    container_name: shade_server
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_HOST=mysqldb
+      - DB_USER=root
+      - DB_PASSWORD=password123
+      - DB_NAME=shade_system_test
+      - JWT_SECRET=mysupersecretkey
+      - CORS_ORIGINS=http://localhost:5173
+    
+    # --- תוספת קריטית: שמירת התמונות גם מחוץ לדוקר ---
+    volumes:
+      # מחבר את תיקיית uploads במחשב שלך לתיקייה בתוך הדוקר
+      # הנחה: ה-Dockerfile שלך משתמש ב-WORKDIR /app
+      - ./server/uploads:/app/uploads
+      
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

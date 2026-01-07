@@ -46,4 +46,7 @@ router.put('/global-state', areaController.updateGlobalState);
 // מחיקת חדר
 router.delete('/:id', areaController.deleteArea);
 
+// נתיב לסימולציה
+router.post('/:id/simulation', areaController.injectSimulationData);
+
 module.exports = router;

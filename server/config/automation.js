@@ -1,11 +1,22 @@
-// Automation thresholds for the smart shading system
 module.exports = {
-  CLOSE_SHADES: {
-    TEMP_ABOVE: 30, // in Celsius
-    LIGHT_ABOVE: 70, // in percentage
-  },
-  OPEN_SHADES: {
-    TEMP_BELOW: 25, // in Celsius
-    LIGHT_BELOW: 50, // in percentage
-  },
+    // הגדרת משקולות לאלגוריתם (סך הכל 1.0)
+    WEIGHTS: {
+        TEMP: 0.6,  // טמפרטורה משפיעה ב-60% על ההחלטה
+        LIGHT: 0.4  // אור משפיע ב-40% על ההחלטה
+    },
+
+    // גבולות נורמליזציה (כדי לחשב ציון)
+    LIMITS: {
+        MAX_TEMP: 35, // ב-35 מעלות הציון של הטמפ' הוא 100
+        MIN_TEMP: 20, // מתחת ל-20 מעלות הציון הוא 0 (נעים)
+        MAX_LIGHT: 100 // 100% אור זה הציון המקסימלי
+    },
+
+    // מדרגות סגירה (כדי שהוילון לא יזוז על כל אחוז קטן)
+    THRESHOLDS: {
+        LEVEL_1: 20, // ציון מעל 20 -> סגור 25%
+        LEVEL_2: 40, // ציון מעל 40 -> סגור 50%
+        LEVEL_3: 70, // ציון מעל 70 -> סגור 75%
+        LEVEL_4: 90  // ציון מעל 90 -> סגור 100%
+    }
 };

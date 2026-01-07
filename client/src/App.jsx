@@ -5,6 +5,7 @@ import RoomDashboard from './components/RoomDashboard';
 import CampusMap from './components/CampusMap';
 import UserManagement from './components/UserManagement';
 import AlertsSystem from './components/AlertsSystem';
+import { socket } from './socket'; // <--- הייבוא החשוב
 import './App.css';
 
 // --- Constants and Settings ---
@@ -44,8 +45,7 @@ function App() {
       }
   }, []);
 
-  // --- Data Loading ---
-  // Initial load when user logs in
+  // --- Data Loading on Login ---
   useEffect(() => {
     if (user) {
         loadAreas();
@@ -53,7 +53,43 @@ function App() {
     }
   }, [user]);
 
-  // Sync the selected area with the master list of areas
+// --- 🔌 SOCKET.IO INTEGRATION (התיקון המסנכרן) ---
+  useEffect(() => {
+    // 1. מאזין להתחברות
+    socket.on("connect", () => {
+        console.log("🟢 WebSocket Connected! ID:", socket.id);
+    });
+
+    // 2. מאזין לניתוק
+    socket.on("disconnect", () => {
+        console.log("🔴 WebSocket Disconnected");
+    });
+
+    // 3. מאזין לעדכון כללי מהשרת
+    socket.on("refresh_areas", () => {
+        console.log("🔄 Received refresh signal - Updating map...");
+        if (user) loadAreas(); 
+    });
+
+    // 4. --- התיקון: כשמגיע לוג חדש, אנחנו גם מושכים את המצב החדש של החדרים ---
+    socket.on("new_log", (newLogEntry) => {
+        // א. עדכון רשימת הלוגים בצד ימין
+        setGlobalLogs(prevLogs => [newLogEntry, ...prevLogs]);
+        
+        // ב. עדכון המפה (כדי שהצבע ישתנה מיד בלי רענון ידני)
+        if (user) loadAreas(); 
+    });
+
+    // ניקוי האזנות כשהקומפוננטה יורדת
+    return () => {
+        socket.off("connect");
+        socket.off("disconnect");
+        socket.off("refresh_areas");
+        socket.off("new_log");
+    };
+  }, [user]);
+
+  // --- Sync Selected Area ---
   useEffect(() => {
     if (selectedArea && areas.length > 0) {
         const updatedArea = areas.find(a => a.id === selectedArea.id);
@@ -92,8 +128,9 @@ function App() {
       if (!window.confirm(`Are you sure you want to change the status of the entire campus to ${newState}?`)) return;
       try {
           await axios.put(`${API_BASE_URL}/api/areas/global/state`, { state: newState });
-          setTimeout(() => { loadAreas(); }, 200);
-          setTimeout(() => { loadAreas(); }, 1000);
+          // אין צורך ב-setTimeout כאן יותר, כי ה-Socket יעדכן אותנו!
+          // אבל נשאיר ליתר ביטחון למקרה שהסוקט לא מחובר
+          loadAreas(); 
       } catch (err) { console.error(err); }
   };
   
@@ -175,7 +212,6 @@ function App() {
         </div>
 
         {/* Right Side: Sidebar (Log/Alerts) */}
-        {/* ה-Sidebar יוצג רק במסך הראשי (כאשר לא נבחר חדר, ניהול משתמשים או התראות) */}
         {!selectedArea && !showUserManagement && !showAlerts && (
             <div className="sidebar-section-container">
                 <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
