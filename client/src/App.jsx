@@ -5,7 +5,9 @@ import RoomDashboard from './components/RoomDashboard';
 import CampusMap from './components/CampusMap';
 import UserManagement from './components/UserManagement';
 import AlertsSystem from './components/AlertsSystem';
-import { socket } from './socket'; // <--- הייבוא החשוב
+import SmartDashboard from './components/SmartDashboard';
+import SchedulerPanel from './components/SchedulerPanel'; // <--- 1. הייבוא החדש
+import { socket } from './socket'; 
 import './App.css';
 
 // --- Constants and Settings ---
@@ -17,14 +19,17 @@ function App() {
   const [selectedArea, setSelectedArea] = useState(null);
   const [globalLogs, setGlobalLogs] = useState([]);
   
+  // --- מצבי תצוגה ---
   const [showUserManagement, setShowUserManagement] = useState(false); 
   const [showAlerts, setShowAlerts] = useState(false); 
+  const [showSmartDash, setShowSmartDash] = useState(true); 
 
   // --- API Calls ---
   const loadAreas = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/areas`);
       if (res.data.success) setAreas(res.data.data);
+      else if (Array.isArray(res.data)) setAreas(res.data); 
     } catch (err) { console.error("Error loading areas:", err); }
   };
 
@@ -32,7 +37,7 @@ function App() {
       try {
           const res = await axios.get(`${API_BASE_URL}/api/sensors/logs`);
           if (res.data.success) setGlobalLogs(res.data.data);
-      } catch (err) { console.error("Error loading logs:", err); }
+      } catch (err) { console.log("Logs endpoint might be different, skipping..."); }
   };
 
   // --- Login Persistence ---
@@ -53,34 +58,25 @@ function App() {
     }
   }, [user]);
 
-// --- 🔌 SOCKET.IO INTEGRATION (התיקון המסנכרן) ---
+// --- 🔌 SOCKET.IO INTEGRATION ---
   useEffect(() => {
-    // 1. מאזין להתחברות
     socket.on("connect", () => {
         console.log("🟢 WebSocket Connected! ID:", socket.id);
     });
 
-    // 2. מאזין לניתוק
     socket.on("disconnect", () => {
         console.log("🔴 WebSocket Disconnected");
     });
 
-    // 3. מאזין לעדכון כללי מהשרת
     socket.on("refresh_areas", () => {
-        console.log("🔄 Received refresh signal - Updating map...");
         if (user) loadAreas(); 
     });
 
-    // 4. --- התיקון: כשמגיע לוג חדש, אנחנו גם מושכים את המצב החדש של החדרים ---
     socket.on("new_log", (newLogEntry) => {
-        // א. עדכון רשימת הלוגים בצד ימין
         setGlobalLogs(prevLogs => [newLogEntry, ...prevLogs]);
-        
-        // ב. עדכון המפה (כדי שהצבע ישתנה מיד בלי רענון ידני)
         if (user) loadAreas(); 
     });
 
-    // ניקוי האזנות כשהקומפוננטה יורדת
     return () => {
         socket.off("connect");
         socket.off("disconnect");
@@ -93,18 +89,13 @@ function App() {
   useEffect(() => {
     if (selectedArea && areas.length > 0) {
         const updatedArea = areas.find(a => a.id === selectedArea.id);
-        if (updatedArea) {
-             setSelectedArea(prev => {
-                 if (JSON.stringify(prev) !== JSON.stringify(updatedArea)) {
-                     return updatedArea;
-                 }
-                 return prev;
-             });
+        if (updatedArea && JSON.stringify(selectedArea) !== JSON.stringify(updatedArea)) {
+             setSelectedArea(updatedArea);
         }
     }
-  }, [areas]);
+  }, [areas, selectedArea]);
 
-  // --- User and Navigation Functions ---
+  // --- User Functions ---
   const handleLoginSuccess = (loggedInUser) => {
       setUser(loggedInUser);
       localStorage.setItem('shade_app_user', JSON.stringify(loggedInUser));
@@ -113,8 +104,6 @@ function App() {
   const handleLogout = () => { 
       setUser(null); 
       setSelectedArea(null); 
-      setShowUserManagement(false);
-      setShowAlerts(false);
       localStorage.removeItem('shade_app_user');
   };
 
@@ -125,78 +114,103 @@ function App() {
   };
 
   const handleGlobalControl = async (newState) => {
-      if (!window.confirm(`Are you sure you want to change the status of the entire campus to ${newState}?`)) return;
+      if (!window.confirm(`Change entire campus to ${newState}?`)) return;
       try {
           await axios.put(`${API_BASE_URL}/api/areas/global/state`, { state: newState });
-          // אין צורך ב-setTimeout כאן יותר, כי ה-Socket יעדכן אותנו!
-          // אבל נשאיר ליתר ביטחון למקרה שהסוקט לא מחובר
           loadAreas(); 
       } catch (err) { console.error(err); }
   };
   
-  // --- Display Helpers ---
   const getLogMessage = (log) => {
       if (log.temperature > 30) return `🔥 Extreme heat (${log.temperature}°C)`;
-      if (log.light_intensity > 90) return `😎 High glare (${log.light_intensity}%)`;
-      if (log.current_position > 0) return `🔒 Closed to ${log.current_position}%`;
-      return `✅ Opened (Natural Light)`;
+      if (log.light_intensity > 1000) return `😎 High glare (${log.light_intensity}%)`;
+      if (log.current_position > 0) return `🔒 Closed ${log.current_position}%`;
+      return `✅ Opened`;
   };
 
   // --- Rendering ---
-  if (!user) {
-      return <Login onLogin={handleLoginSuccess} />;
-  }
+  if (!user) return <Login onLogin={handleLoginSuccess} />;
 
   return (
-    <div className="app-container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+    <div className="app-container" style={{display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden'}}>
+      
+      {/* 1. Header */}
+      <header style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', height: '60px', backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 20 }}>
+        
+        {/* צד שמאל: לוגו + כפתור האלגוריתם */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-             <div style={{ fontSize: '1.8rem' }}>🎓</div> 
+             <div style={{ fontSize: '1.8rem' }}>☀️</div> 
              <div>
-               <h1 style={{ margin: 0, fontSize: '1.3rem', color: '#2c3e50', fontWeight: '700' }}>Smart Shading System</h1>
-               <div style={{ fontSize: '0.8rem', color: '#555' }}>
-                   Logged in as: <strong>{user.username}</strong> <span style={{background: '#eee', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', textTransform: 'uppercase'}}>{user.role}</span>
-               </div>
+               <h1 style={{ margin: 0, fontSize: '1.2rem', color: '#2c3e50', fontWeight: '700' }}>Smart Shade</h1>
              </div>
+
+             {/* כפתור להדלקה/כיבוי של הסטריפ המדעי */}
+             <button 
+                onClick={() => setShowSmartDash(!showSmartDash)}
+                style={{
+                    background: showSmartDash ? '#e0e0e0' : 'transparent',
+                    border: '1px solid #ccc',
+                    borderRadius: '20px',
+                    padding: '4px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    marginLeft: '15px'
+                }}
+             >
+                🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
+             </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {!selectedArea && !showUserManagement && (
-                <button 
-                    onClick={() => setShowAlerts(!showAlerts)} 
-                    className="header-btn"
-                >
-                    {showAlerts ? 'Back to Map' : '🚨 Alerts'}
-                </button>
+        {/* צד ימין: כפתורי שליטה וניווט */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            
+            {/* כפתורי שליטה גלובליים */}
+            {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
+                <div style={{ display: 'flex', gap: '5px', marginRight: '10px', borderRight: '1px solid #eee', paddingRight: '10px' }}>
+                    <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⚡ Auto</button>
+                    <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⬆ Open All</button>
+                    <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⬇ Close All</button>
+                </div>
             )}
 
-            {user.role === 'admin' && !selectedArea && !showAlerts && (
-                <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
-                    {showUserManagement ? 'Back to Map' : '👥 Users'}
+            {!selectedArea && !showUserManagement && (
+                <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
+                    {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
                 </button>
             )}
             
-            {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && !showUserManagement && !showAlerts && (
-                <>
-                    <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">Auto</button>
-                    <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">Open All</button>
-                    <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">Close All</button>
-                </>
-            )}
-
-            {selectedArea && (
-                <button onClick={goBackToMap} className="back-btn"><span>↩</span> Back to Map</button>
+            {user.role === 'admin' && !selectedArea && !showAlerts && (
+                <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
+                    {/* שיניתי את הטקסט כדי שיראה שמדובר בניהול כללי */}
+                    {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
+                </button>
             )}
             
             <button onClick={handleLogout} className="header-btn-logout">Logout</button>
         </div>
       </header>
 
-      <div className="main-content-wrapper">
-        {/* Left Side: Map or Dashboard */}
-        <div className="map-section-container">
+      {/* 2. THE SCIENTIFIC BRAIN */}
+      {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
+          <div style={{ flexShrink: 0, zIndex: 10 }}>
+              <SmartDashboard />
+          </div>
+      )}
+
+      {/* 3. Main Content */}
+      <div className="main-content-wrapper" style={{ flexGrow: 1, overflow: 'hidden', display: 'flex' }}>
+        
+        {/* Left Side */}
+        <div className="map-section-container" style={{ flex: 3, padding: '20px', overflowY: 'auto' }}>
             {showUserManagement && user.role === 'admin' ? (
-              <UserManagement />
+              // --- כאן השילוב החדש! ---
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                  <SchedulerPanel /> {/* הלו"ז מופיע ראשון */}
+                  <UserManagement /> {/* ניהול המשתמשים מופיע מתחתיו */}
+              </div>
             ) : showAlerts ? ( 
               <AlertsSystem user={user} areas={areas} />
             ) : selectedArea ? (
@@ -211,26 +225,21 @@ function App() {
             )}
         </div>
 
-        {/* Right Side: Sidebar (Log/Alerts) */}
+        {/* Right Side: Sidebar */}
         {!selectedArea && !showUserManagement && !showAlerts && (
-            <div className="sidebar-section-container">
-                <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-                    <h3 style={{ margin: 0, color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ width: '10px', height: '10px', background: '#e74c3c', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #e74c3c' }}></span>
-                        Live Activity Log
-                    </h3>
+            <div className="sidebar-section-container" style={{ flex: 1, borderLeft: '1px solid #ddd', background: 'white', overflowY: 'auto', maxWidth: '300px' }}>
+                <div style={{ padding: '15px', borderBottom: '1px solid #eee', background: '#fafafa' }}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#7f8c8d' }}>📜 Activity Log</h3>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0', padding: '10px' }}>
+                <div style={{ padding: '10px' }}>
                     {globalLogs.map((log, index) => (
-                        <div key={index} style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '0.9rem' }}>
-                            <div style={{ fontWeight: 'bold', color: '#34495e', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{log.room}</span>
-                                <span style={{ fontSize: '0.75rem', color: '#95a5a6' }}>{new Date(log.recorded_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
-                            </div>
-                            <div style={{ marginTop: '5px', color: '#555' }}>{getLogMessage(log)}</div>
+                        <div key={index} style={{ padding: '10px', borderBottom: '1px solid #eee', fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: 'bold' }}>{log.room || 'System'}</div>
+                            <div style={{ color: '#555' }}>{getLogMessage(log)}</div>
+                            <div style={{ fontSize: '0.7rem', color: '#aaa' }}>{new Date(log.recorded_at).toLocaleTimeString()}</div>
                         </div>
                     ))}
-                    {globalLogs.length === 0 && <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>No activity yet...</div>}
+                    {globalLogs.length === 0 && <p style={{textAlign:'center', color:'#ccc'}}>Waiting for data...</p>}
                 </div>
             </div>
         )}

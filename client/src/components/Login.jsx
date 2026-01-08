@@ -9,14 +9,29 @@ const Login = ({ onLogin }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(''); // ניקוי שגיאות קודמות
+        
         try {
             const res = await axios.post('http://localhost:3001/api/users/login', { username, password });
+            
             if (res.data.success) {
-                onLogin(res.data.user);
+                // --- התיקון הקריטי כאן! ---
+                // אנחנו יוצרים אובייקט חדש שמכיל גם את פרטי המשתמש וגם את הטוקן
+                const userWithToken = {
+                    ...res.data.user,
+                    token: res.data.token // <--- הנה המפתח החסר!
+                };
+
+                // שולחים את הכל ביחד לשמירה ב-LocalStorage
+                onLogin(userWithToken);
             } else {
                 setError('Invalid login credentials');
             }
-        } catch (err) { setError('Server error, please try again later'); }
+        } catch (err) { 
+            // טיפול יפה יותר בשגיאה שמגיעה מהשרת (אם יש כזו)
+            const msg = err.response?.data?.message || 'Server error, please try again later';
+            setError(msg); 
+        }
     };
 
     return (
@@ -29,16 +44,18 @@ const Login = ({ onLogin }) => {
                         placeholder="Email / Username" 
                         value={username} 
                         onChange={(e) => setUsername(e.target.value)} 
+                        required
                     />
                     <input 
                         type="password" 
                         placeholder="Password" 
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 
+                        required
                     />
                     <button type="submit">Login</button>
                 </form>
-                {error && <div className="login-error">{error}</div>}
+                {error && <div className="login-error" style={{color: 'red', marginTop: '10px'}}>{error}</div>}
                 <div className="login-footer">Smart Campus Control System</div>
             </div>
         </div>

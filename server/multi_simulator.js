@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const SERVER_URL = 'http://localhost:3001/api/sensors/data';
+const SERVER_URL = 'http://localhost:3001/api/sensors';
 const TARGET_IDS = [2, 3, 4]; // ה-IDs של החדרים שלך
 
 console.log('--- Scenario-Based Simulator Started ---');

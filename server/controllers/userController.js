@@ -1,39 +1,45 @@
 const db = require('../config/db');
+const jwt = require('jsonwebtoken'); // <--- חובה לייבא את זה!
+
+// מפתח גיבוי זהה למה ששמנו ב-auth.js
+const SECRET_KEY = process.env.JWT_SECRET || "my_secret_key";
 
 // התחברות (Login)
 exports.login = async (req, res) => {
     const { username, password } = req.body;
     
-    // 1. הדפסה: מה הגיע מהאתר?
-    console.log("🔍 Login Attempt:");
-    console.log("   Username received:", username);
-    console.log("   Password received:", password);
+    console.log("🔍 Login Attempt:", username);
 
     try {
         const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
 
-        // 2. הדפסה: מה חזר מהדאטה-בייס?
-        console.log("   DB Result found:", users.length, "users");
-
         if (users.length === 0) {
-            console.log("❌ Error: User not found in DB!");
+            console.log("❌ User not found");
             return res.status(401).json({ success: false, message: 'משתמש לא נמצא' });
         }
 
         const user = users[0];
         
-        // 3. הדפסה: השוואת סיסמאות
-        console.log("   DB Password:", user.password);
-        console.log("   Input Password:", password);
-
+        // בדיקת סיסמה (כפי שהיה אצלך)
         if (password === user.password) {
-            console.log("✅ Success: Login approved!");
+            console.log("✅ Password match! Generating Token...");
+
+            // --- התיקון הקריטי: יצירת הטוקן ---
+            const token = jwt.sign(
+                { id: user.id, username: user.username, role: user.role },
+                SECRET_KEY,
+                { expiresIn: '24h' }
+            );
+
+            // שולחים את הטוקן חזרה ללקוח
             res.json({ 
                 success: true, 
+                token: token, // <--- הנה הוא!
                 user: { id: user.id, username: user.username, role: user.role } 
             });
+
         } else {
-            console.log("❌ Error: Password mismatch!");
+            console.log("❌ Password mismatch");
             res.status(401).json({ success: false, message: 'סיסמה שגויה' });
         }
     } catch (error) {
@@ -45,7 +51,6 @@ exports.login = async (req, res) => {
 // קבלת כל המשתמשים (Admin Only)
 exports.getAllUsers = async (req, res) => {
     try {
-        // לא מחזירים סיסמאות!
         const [rows] = await db.query('SELECT id, username, role, created_at FROM users');
         res.json({ success: true, data: rows });
     } catch (error) {

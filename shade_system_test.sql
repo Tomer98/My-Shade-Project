@@ -1,11 +1,8 @@
--- איפוס מלא ובנייה מחדש (באנגלית)
 DROP DATABASE IF EXISTS shade_system_test;
 CREATE DATABASE shade_system_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE shade_system_test;
 
--- ==========================================
--- 1. טבלת משתמשים (Users)
--- ==========================================
+-- 1. טבלת משתמשים
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
@@ -16,41 +13,37 @@ CREATE TABLE users (
 );
 
 INSERT INTO users (username, password, email, role) VALUES 
-('admin', '123456', 'admin@test.com', 'admin'),
-('alice', '123456', 'alice@campus.edu', 'admin');
+('Alice', 'password123', 'alice@campus.edu', 'admin'),
+('Bob', 'password123', 'bob@campus.edu', 'maintenance'),
+('Dana', 'password123', 'dana@campus.edu', 'planner'),
+('Tom', 'password123', 'bareltom33@gmail.com', 'admin');
 
--- ==========================================
--- 2. טבלת אזורים (Areas) - מתורגם לאנגלית
--- ==========================================
+-- 2. טבלת אזורים (הוספתי לכאן את העמודות החסרות!)
 CREATE TABLE areas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     building_number INT,
     floor INT,
-    room VARCHAR(255),         -- Room Name
+    room VARCHAR(255),
     room_number VARCHAR(50),
-    location_note VARCHAR(255),
     description TEXT,
     
-    -- עמודות חדשות
-    map_file_path VARCHAR(255) DEFAULT NULL,
+    -- === העמודות החדשות שהיו חסרות ===
+    map_file_path VARCHAR(255) DEFAULT NULL, -- נתיב לתמונה
+    sensor_position JSON DEFAULT NULL,       -- מיקומי חיישנים
+    -- ================================
+
     map_coordinates JSON,
-    sensor_position JSON,
     shade_state VARCHAR(50) DEFAULT 'AUTO',
     current_position INT DEFAULT 0,
     last_manual_change DATETIME DEFAULT NULL,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- נתונים באנגלית
-INSERT INTO areas (building_number, floor, room, description, map_coordinates, sensor_position, shade_state) VALUES 
-(5, 2, 'Classroom 206', 'Building 5 - Study Room', '{"top": 40, "left": 20}', '[]', 'AUTO'),
-(6, 1, 'Auditorium', '6 - Main Auditorium', '{"top": 60, "left": 50}', '[]', 'CLOSED'),
-(8, 3, 'Room 101', 'Building 8 - Offices', '{"top": 30, "left": 70}', '[]', 'AUTO');
+INSERT INTO areas (building_number, floor, room, description, map_coordinates) VALUES 
+(5, 2, 'Classroom 206', 'Sunny Side', '{"top": 40, "left": 20}'),
+(6, 1, 'Auditorium', 'Main Hall', '{"top": 60, "left": 50}');
 
--- ==========================================
--- 3. טבלת לוגים (Logs)
--- ==========================================
+-- 3. טבלת לוגים רגילה
 CREATE TABLE logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     area_id INT,
@@ -61,36 +54,43 @@ CREATE TABLE logs (
     FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
 );
 
--- נתונים ראשוניים לגרף
 INSERT INTO logs (area_id, temperature, light_intensity, current_position, recorded_at) VALUES 
 (1, 22.5, 80, 0, NOW() - INTERVAL 1 HOUR),
-(1, 23.0, 85, 0, NOW() - INTERVAL 45 MINUTE),
-(1, 24.5, 90, 20, NOW() - INTERVAL 30 MINUTE),
-(1, 25.0, 60, 50, NOW() - INTERVAL 15 MINUTE),
-(1, 24.0, 40, 0, NOW());
+(1, 24.5, 90, 20, NOW() - INTERVAL 30 MINUTE);
 
--- ==========================================
--- 4. תזמונים (Schedules)
--- ==========================================
+-- 4. טבלת לוגים מדעיים
+CREATE TABLE weather_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    temp FLOAT,
+    light_level FLOAT,
+    condition_text VARCHAR(50), 
+    decision VARCHAR(50),       
+    reason VARCHAR(255),
+    score FLOAT DEFAULT 0,  -- הוספתי את זה כדי למנוע צורך בתיקון עתידי
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. תזמונים (Schedules)
 CREATE TABLE schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     area_id INT,
     execution_time VARCHAR(10) NOT NULL, 
-    action VARCHAR(50),
+    action_type VARCHAR(50), 
+    target_position INT DEFAULT 0, 
     is_active BOOLEAN DEFAULT TRUE,
     days VARCHAR(255) DEFAULT 'all',
     FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
 );
 
--- ==========================================
--- 5. התראות (Alerts)
--- ==========================================
+-- 6. התראות (Alerts)
 CREATE TABLE alerts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     area_id INT,
-    message TEXT,
-    severity VARCHAR(20) DEFAULT 'info',
-    is_read BOOLEAN DEFAULT FALSE,
+    created_by INT,          
+    assigned_to INT,         
+    description TEXT,        
+    priority VARCHAR(20) DEFAULT 'Medium',
+    status VARCHAR(20) DEFAULT 'Open',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE SET NULL
+    FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
 );

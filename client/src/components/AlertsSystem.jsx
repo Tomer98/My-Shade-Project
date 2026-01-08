@@ -6,73 +6,112 @@ const AlertsSystem = ({ user, areas }) => {
     const [alerts, setAlerts] = useState([]);
     const [maintenanceUsers, setMaintenanceUsers] = useState([]);
     const [newAlert, setNewAlert] = useState({ area_id: '', description: '', priority: 'Medium' });
-    const [message, setMessage] = useState({ text: '', type: '' }); // For success/error messages
+    const [message, setMessage] = useState({ text: '', type: '' });
     const [loading, setLoading] = useState(true);
 
     const API_URL = 'http://localhost:3001/api';
 
-    const fetchAlerts = async () => {
+    // --- שיפור אבטחה: פונקציה בטוחה להוצאת הטוקן ---
+    const getAuthHeader = () => {
+        const savedUser = localStorage.getItem('shade_app_user');
+        if (!savedUser) return null;
+        
         try {
-            const res = await axios.get(`${API_URL}/alerts`);
+            const userData = JSON.parse(savedUser);
+            if (!userData || !userData.token) return null;
+            return { headers: { Authorization: `Bearer ${userData.token}` } };
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const fetchAlerts = async () => {
+        const config = getAuthHeader();
+        if (!config) return; // לא שולחים בקשה אם אין טוקן
+
+        try {
+            const res = await axios.get(`${API_URL}/alerts`, config);
             if (res.data.success) setAlerts(res.data.data);
         } catch (err) {
-            setMessage({ text: 'Failed to fetch alerts.', type: 'error' });
+            console.error("Error loading alerts:", err);
+            // אם הטוקן פג תוקף - נבקש מהמשתמש להתחבר מחדש
+            if (err.response && err.response.status === 401) {
+                setMessage({ text: 'Session expired. Please logout and login again.', type: 'error' });
+            }
         }
     };
 
     const fetchMaintenanceStaff = async () => {
         if (user.role !== 'admin') return;
+        const config = getAuthHeader();
+        if (!config) return;
+
         try {
-            const res = await axios.get(`${API_URL}/users`);
+            const res = await axios.get(`${API_URL}/users`, config);
             if (res.data.success) {
                 const staff = res.data.data.filter(u => u.role === 'maintenance' || u.role === 'admin');
                 setMaintenanceUsers(staff);
             }
-        } catch (err) {
-            setMessage({ text: 'Failed to fetch staff.', type: 'error' });
-        }
+        } catch (err) { console.error("Failed to fetch staff"); }
     };
 
     useEffect(() => {
-        setLoading(true);
-        Promise.all([fetchAlerts(), fetchMaintenanceStaff()]).finally(() => setLoading(false));
-    }, []);
+        if (user) {
+            setLoading(true);
+            Promise.all([fetchAlerts(), fetchMaintenanceStaff()])
+                .finally(() => setLoading(false));
+        }
+    }, [user]);
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        const config = getAuthHeader();
+        
+        if (!config) {
+            alert("Your session has expired. Please logout and login again.");
+            return;
+        }
+
         if (!newAlert.area_id) {
             setMessage({ text: 'Please select a room.', type: 'error' });
             return;
         }
         
         try {
-            await axios.post(`${API_URL}/alerts`, { ...newAlert, created_by: user.id });
+            await axios.post(
+                `${API_URL}/alerts`, 
+                { ...newAlert, created_by: user.id }, 
+                config
+            );
+            
             setMessage({ text: 'Alert created successfully!', type: 'success' });
             setNewAlert({ area_id: '', description: '', priority: 'Medium' });
-            fetchAlerts();
+            fetchAlerts(); 
             setTimeout(() => setMessage({ text: '', type: '' }), 4000);
         } catch (err) {
-            setMessage({ text: 'Error creating alert.', type: 'error' });
+            console.error(err);
+            setMessage({ text: 'Error creating alert. Check permissions.', type: 'error' });
         }
     };
 
+    // --- שאר הפונקציות (ללא שינוי) ---
     const handleUpdate = async (alertId, updates) => {
+        const config = getAuthHeader();
+        if (!config) return;
         try {
-            await axios.put(`${API_URL}/alerts/${alertId}`, updates);
+            await axios.put(`${API_URL}/alerts/${alertId}`, updates, config);
             fetchAlerts();
-        } catch (err) {
-            setMessage({ text: 'Failed to update alert.', type: 'error' });
-        }
+        } catch (err) { alert('Update failed'); }
     };
 
     const handleDelete = async (alertId) => {
-        if (!window.confirm('Are you sure you want to delete this alert?')) return;
+        if (!window.confirm('Delete this alert?')) return;
+        const config = getAuthHeader();
+        if (!config) return;
         try {
-            await axios.delete(`${API_URL}/alerts/${alertId}`);
+            await axios.delete(`${API_URL}/alerts/${alertId}`, config);
             fetchAlerts();
-        } catch (err) {
-            setMessage({ text: 'Failed to delete alert.', type: 'error' });
-        }
+        } catch (err) { alert('Delete failed'); }
     };
 
     const getPriorityStyle = (p) => {
@@ -96,7 +135,7 @@ const AlertsSystem = ({ user, areas }) => {
                         <label>Room / Area:</label>
                         <select value={newAlert.area_id} onChange={e => setNewAlert({...newAlert, area_id: e.target.value})} required>
                             <option value="">Select a room...</option>
-                            {areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
+                            {areas.map(area => <option key={area.id} value={area.id}>{area.name || area.room}</option>)}
                         </select>
                     </div>
                     <div>
@@ -129,7 +168,7 @@ const AlertsSystem = ({ user, areas }) => {
                                 <div className="alert-details">
                                     <strong>{alert.room_name}</strong>
                                     <span className="alert-priority-badge">{alert.priority}</span>
-                                    <span className="alert-reporter">Reported by: {alert.created_by_name}</span>
+                                    <span className="alert-reporter">Reported by: {alert.created_by_name || 'Unknown'}</span>
                                 </div>
                                 <p className="alert-description">{alert.description}</p>
                                 <div className="alert-status-section">
@@ -144,18 +183,16 @@ const AlertsSystem = ({ user, areas }) => {
                             {(user.role === 'admin' || user.role === 'maintenance') && (
                                 <div className="alert-actions">
                                     {user.role === 'admin' && alert.status !== 'Resolved' && (
-                                        <select onChange={(e) => handleUpdate(alert.id, { assigned_to: e.target.value })} value={alert.assigned_to_id || ""}>
-                                            <option value="" disabled>Assign to staff...</option>
+                                        <select onChange={(e) => handleUpdate(alert.id, { assigned_to: e.target.value, status: 'Acknowledged' })} value={alert.assigned_to || ""}>
+                                            <option value="" disabled>Assign staff...</option>
                                             {maintenanceUsers.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                                         </select>
                                     )}
-
                                     {alert.status !== 'Resolved' && (
                                         <button className="resolve-btn" onClick={() => handleUpdate(alert.id, { status: 'Resolved' })}>
-                                            ✅ Mark as Resolved
+                                            ✅ Resolve
                                         </button>
                                     )}
-
                                     {user.role === 'admin' && (
                                         <button className="delete-btn" onClick={() => handleDelete(alert.id)}>
                                             🗑️ Delete

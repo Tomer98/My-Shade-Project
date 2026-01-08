@@ -1,0 +1,22 @@
+# Dependencies
+**/node_modules/
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Uploads
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Build Outputs
+dist/
+build/
+client/dist/
+
+# Misc
+.DS_Store
+.vscode/
+*.log

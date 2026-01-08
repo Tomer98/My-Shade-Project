@@ -4,13 +4,14 @@ const sensorController = require('../controllers/sensorController');
 
 // --- הסדר כאן קריטי! ---
 
-// 1. קודם כל נתיבים ספציפיים (כמו 'logs' או 'history')
-router.get('/logs', sensorController.getGlobalLogs);
+// 1. הנתיב שהיה חסר לך! (חייב להיות ראשון)
+router.get('/latest', sensorController.getLatest);
 
-// הנה השורה שחסרה לך כרגע:
+// 2. נתיבים ספציפיים אחרים
+router.get('/logs', sensorController.getGlobalLogs);
 router.get('/history/:areaId', sensorController.getHistoryByArea);
 
-// 2. רק אחר כך נתיבים עם פרמטרים כלליים (אם יש) או שורש
+// 3. נתיב כללי (שורש)
 router.post('/', sensorController.addSensorData);
 
 module.exports = router;

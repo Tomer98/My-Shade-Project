@@ -1,12 +1,20 @@
-// server/middleware/upload.js
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// תיקון לדוקר: שימוש ב-process.cwd() מבטיח שאנחנו בתיקייה הראשית של השרת
+const uploadDir = path.join(process.cwd(), 'uploads');
+
+console.log(`📂 Upload middleware initialized. Directory: ${uploadDir}`);
+
 // וודא שתיקיית uploads קיימת
-const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+        fs.mkdirSync(uploadDir, { recursive: true });
+        console.log("✅ Created 'uploads' directory successfully.");
+    } catch (err) {
+        console.error("❌ Failed to create 'uploads' directory. Check permissions!", err);
+    }
 }
 
 // הגדרת האחסון
@@ -15,9 +23,11 @@ const storage = multer.diskStorage({
         cb(null, uploadDir); // שמירה בתיקיית uploads
     },
     filename: function (req, file, cb) {
-        // יצירת שם ייחודי לקובץ (זמן + שם מקורי) כדי למנוע דריסות
+        // יצירת שם ייחודי לקובץ
+        // תיקון קטן: החלפת רווחים בקו תחתון כדי למנוע בעיות ב-URL
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        const sanitizedOriginalName = file.originalname.replace(/\s+/g, '_');
+        cb(null, uniqueSuffix + path.extname(sanitizedOriginalName));
     }
 });
 
@@ -33,7 +43,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // הגבלת גודל ל-5MB
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
 module.exports = upload;
