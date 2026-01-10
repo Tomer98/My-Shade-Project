@@ -7,6 +7,7 @@ const fs = require('fs');
 const helmet = require('helmet'); 
 const rateLimit = require('express-rate-limit'); 
 
+
 require('dotenv').config();
 
 // ייבוא בסיס הנתונים
@@ -23,7 +24,7 @@ const schedulerRoutes = require('./routes/schedulerRoutes');
 const upload = require('./middleware/upload');
 
 // ייבוא המתזמן החכם
-const initScheduler = require('./services/scheduler'); 
+const { initScheduler, updateSimulation } = require('./services/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -134,6 +135,20 @@ app.get('/fix-db', async (req, res) => {
         await db.query("ALTER TABLE weather_logs ADD COLUMN score FLOAT DEFAULT 0;");
         res.send("✅ Database Fixed! Added 'score' column.");
     } catch (err) { res.send("ℹ️ Note: " + err.message); }
+});
+
+// Endpoint להפעלת סימולציה (Test AI)
+app.post('/api/simulation', (req, res) => {
+    const { isActive, temp, light } = req.body;
+    
+    // קריאה לפונקציה שיצרנו ב-scheduler.js
+    updateSimulation(isActive, temp, light);
+
+    res.json({ 
+        success: true, 
+        message: isActive ? 'Simulation Started' : 'Simulation Stopped',
+        data: { temp, light }
+    });
 });
 
 // ==========================================

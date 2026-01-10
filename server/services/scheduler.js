@@ -4,21 +4,64 @@ const weatherService = require('./weatherService');
 
 let ioInstance = null;
 
-// --- המוח המדעי (לוגיקה) ---
-const calculateShadeAction = (temp, light, condition) => {
-    const normTemp = Math.min(Math.max((temp - 20) / 20, 0), 1); 
+// ==========================================
+// 🧠 המוח הלוגי (חישוב ציון לכל חדר)
+// ==========================================
+const calculateShadeAction = (temp, light, condition, isSimulated) => {
+    
+    // --- 1. בדיקות קיצון (בטיחות והגנה) - עוקף כל חישוב אחר ---
+
+    // 🌧️ הגנה מגשם וסערה (קריטי!)
+    // בסימולציה נתעלם, אלא אם נרצה בעתיד לדמות גם את זה
+    if (!isSimulated && (condition === 'Storm' || condition === 'Rain' || condition === 'Heavy Rain')) {
+        return { 
+            action: 'CLOSE', 
+            score: 1.0, 
+            reason: '🌧️ Rain Protection (Safety)' 
+        };
+    }
+
+    // 🔥 הגנה מחום קיצוני (מעל 35 מעלות)
+    if (temp > 35) {
+        return { 
+            action: 'CLOSE', 
+            score: 1.0, 
+            reason: `🔥🔥 Extreme Heat Protection (${temp}°C)` 
+        };
+    }
+
+    // ❄️ הגנה מקור קיצוני (מתחת ל-5 מעלות) - בידוד החדר
+    if (temp < 5) {
+        return { 
+            action: 'CLOSE', 
+            score: 1.0, 
+            reason: `❄️ Extreme Cold Insulation (${temp}°C)` 
+        };
+    }
+
+    // --- 2. חישוב נוחות רציף (Comfort Logic) ---
+    
+    // נרמול טמפרטורה: 
+    // טווח הנוחות: 20 מעלות (פתוח) עד 35 מעלות (סגור)
+    // כל מה שמעל 20 מתחיל להעלות את הציון
+    const normTemp = Math.min(Math.max((temp - 20) / 15, 0), 1); 
+    
+    // נרמול אור:
+    // 0 לוקס (חושך) עד 10,000 לוקס (שמש ישירה חזקה)
     const normLight = Math.min(Math.max(light / 10000, 0), 1);
+    
+    // חישוב ציון משוקלל: 
+    // נתנו משקל מעט גבוה יותר לטמפרטורה (60%) מאשר לאור (40%)
     let score = (0.6 * normTemp) + (0.4 * normLight);
     
-    if (condition === 'Storm' || condition === 'Rain') score = 1.0; 
+    let action = 'PARTIAL';
+    let reason = `Balanced Adjustment (Score: ${score.toFixed(2)})`;
 
-    let action = 'WAITING';
-    let reason = 'Optimal Conditions';
-
-    if (score >= 0.7) {
+    // הגדרות טקסטואליות לתצוגה בלבד (התנועה עצמה תהיה רציפה באחוזים)
+    if (score >= 0.95) {
         action = 'CLOSE';
         reason = `High Intensity (Score: ${score.toFixed(2)})`;
-    } else if (score <= 0.3) {
+    } else if (score <= 0.05) {
         action = 'OPEN';
         reason = `Low Intensity (Score: ${score.toFixed(2)})`;
     }
@@ -26,103 +69,89 @@ const calculateShadeAction = (temp, light, condition) => {
     return { action, score, reason };
 };
 
+// ==========================================
+// ⏰ אתחול המתזמן החכם
+// ==========================================
 const initScheduler = (io) => {
     ioInstance = io;
-    console.log('⏰ Intelligent Scheduler is initialized and running...');
+    console.log('⏰ Intelligent Scheduler running (Continuous Mode)...');
 
-    // רץ כל 10 שניות
-    cron.schedule('*/10 * * * * *', async () => {
-        
-        // --- התיקון הגדול: המרה כפויה לשעון ישראל ---
-        const now = new Date();
-        const currentTime = now.toLocaleTimeString('en-GB', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            timeZone: 'Asia/Jerusalem' // <--- זה מה שהיה חסר!
-        });
-
-        // לוג דיבאג כדי שתראה שהשרת חי ובודק את השעה הנכונה
-        console.log(`⏱️ Scheduler Tick: Checking for tasks at [${currentTime}] (Israel Time)...`);
-
+    // רץ כל 5 שניות לתגובתיות גבוהה
+    cron.schedule('*/5 * * * * *', async () => {
         try {
-            // 1. מזג אוויר ומוח מדעי
-            const weather = await weatherService.getCurrentWeather(); 
-            const currentTemp = weather.temp;
-            const currentLight = weather.light;
-            const currentCondition = (currentLight < 200) ? 'Night/Cloudy' : 'Sunny'; 
+            // 1. קבלת מזג אוויר אמיתי
+            const realWeather = await weatherService.getCurrentWeather(); 
+            
+            // 2. שליפת אזורים
+            const [areas] = await db.query('SELECT * FROM areas');
 
-            const smartDecision = calculateShadeAction(currentTemp, currentLight, currentCondition);
+            for (const area of areas) {
+                // דילוג על מצב ידני
+                if (area.shade_state === 'MANUAL') continue;
 
-            // שמירת לוגים מדעיים
-            await db.query(
-                'INSERT INTO weather_logs (temp, light_level, condition_text, decision, reason, score) VALUES (?, ?, ?, ?, ?, ?)',
-                [currentTemp, currentLight, currentCondition, smartDecision.action, smartDecision.reason, smartDecision.score]
-            );
+                let currentTemp, currentLight, currentCondition, isSimulated;
 
-            if (ioInstance) {
-                ioInstance.emit('weather_update', {
-                    temp: currentTemp,
-                    light: currentLight,
-                    score: smartDecision.score,
-                    decision: smartDecision.action,
-                    reason: smartDecision.reason
-                });
-            }
+                // --- לוג דיבאג ---
+                if (area.is_simulation) {
+                    console.log(`🔎 Sim Room ${area.id}: Temp ${area.sim_temp}°C, Light ${area.sim_light}lx`);
+                }
 
-            // בדיקת Override קריטי
-            if (smartDecision.score >= 0.95) { 
-                console.log(`⚠️ CRITICAL WEATHER override.`);
-                await db.query('UPDATE areas SET shade_state = "CLOSED", current_position = 100 WHERE shade_state = "AUTO"');
-                if (ioInstance) ioInstance.emit('refresh_areas');
-                return; 
-            }
+                // --- בחירת מקור הנתונים ---
+                if (area.is_simulation) {
+                    currentTemp = area.sim_temp;
+                    currentLight = area.sim_light;
+                    currentCondition = 'Simulation'; // בסימולציה אין גשם כרגע
+                    isSimulated = true;
+                } else {
+                    currentTemp = realWeather.temp;
+                    currentLight = realWeather.light;
+                    // זיהוי תנאי תאורה בסיסי אם אין מידע מה-API
+                    currentCondition = (currentLight < 200) ? 'Night' : (realWeather.condition || 'Sunny');
+                    isSimulated = false;
+                }
 
-            // 2. ביצוע לו"ז משימות (Schedules)
-            // אנחנו מחפשים משימה שהזמן שלה שווה בדיוק לזמן בישראל עכשיו
-            const [tasks] = await db.query(
-                `SELECT s.*, a.room 
-                 FROM schedules s
-                 JOIN areas a ON s.area_id = a.id
-                 WHERE s.execution_time = ? AND s.is_active = TRUE`, 
-                [currentTime]
-            );
+                // 3. חישוב ההחלטה
+                const decision = calculateShadeAction(currentTemp, currentLight, currentCondition, isSimulated);
 
-            if (tasks.length > 0) {
-                console.log(`✅ MATCH FOUND! Executing ${tasks.length} tasks for ${currentTime}`);
+                // 4. המרה לאחוזים (0-100)
+                // הציון (0.0 - 1.0) מוכפל ב-100
+                let targetPosition = Math.round(decision.score * 100);
 
-                for (const task of tasks) {
-                    console.log(`🚀 Performing Task: ${task.action_type} for ${task.room}`);
+                // 5. מניעת "רעידות" (Hysteresis) ועדכון
+                // נעדכן רק אם השינוי גדול מ-5%, או אם צריך להגיע לקצוות (0 או 100) בדיוק
+                const diff = Math.abs(targetPosition - area.current_position);
+
+                if (diff >= 5 || targetPosition === 0 || targetPosition === 100) {
                     
-                    // ביצוע הפעולה
+                    // בדיקה נוספת: אם ההפרש הוא רק 1-2 אחוז והיעד הוא לא קצה - נתעלם
+                    if (diff < 5 && targetPosition !== 0 && targetPosition !== 100) continue;
+
+                    console.log(`🚀 ACTION: Moving ${area.room} to ${targetPosition}% (Reason: ${decision.reason})`);
+                    
+                    let newState = 'AUTO';
+                    if (targetPosition === 100) newState = 'CLOSED';
+                    else if (targetPosition === 0) newState = 'OPEN';
+
                     await db.query(
-                        'UPDATE areas SET shade_state = "AUTO", current_position = ? WHERE id = ?',
-                        [task.target_position, task.area_id]
+                        'UPDATE areas SET current_position = ?, shade_state = ? WHERE id = ?',
+                        [targetPosition, newState, area.id]
                     );
 
-                    // תיעוד
+                    // תיעוד לוגים
                     await db.query(
                         `INSERT INTO logs (area_id, temperature, light_intensity, current_position)
                          VALUES (?, ?, ?, ?)`, 
-                        [task.area_id, currentTemp, currentLight, task.target_position]
+                        [area.id, currentTemp, currentLight, targetPosition]
                     );
-
-                    if (ioInstance) {
-                        ioInstance.emit('new_log', {
-                            room: task.room,
-                            temperature: currentTemp,
-                            light_intensity: currentLight,
-                            current_position: task.target_position,
-                            recorded_at: new Date()
-                        });
-                        ioInstance.emit('refresh_areas');
-                    }
+                    
+                    if (ioInstance) ioInstance.emit('refresh_areas');
                 }
             }
-
+            
         } catch (error) {
-            console.error('Scheduler Error:', error.message);
+            console.error('Scheduler Cycle Error:', error.message);
         }
     });
 };
 
-module.exports = initScheduler;
+module.exports = { initScheduler };
