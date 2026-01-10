@@ -20,13 +20,18 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   // UI States
-  const [saveButtonText, setSaveButtonText] = useState('💾 Save & Exit');
+  const [saveButtonText, setSaveButtonText] = useState('💾 Save');
   const [isUploading, setIsUploading] = useState(false);
-  const [isSendingCommand, setIsSendingCommand] = useState(false); // אינדיקציה לשליחה
+  const [isSendingCommand, setIsSendingCommand] = useState(false);
 
-  // --- סימולציה (Testing Mode) ---
+  // --- Real-Time Data Display ---
+  const [displayTemp, setDisplayTemp] = useState(0);
+  const [displayLight, setDisplayLight] = useState(0);
+
+  // --- סימולציה ---
   const [simTemp, setSimTemp] = useState(25);
-  const [simLight, setSimLight] = useState(50);
+  const [simLight, setSimLight] = useState(5000);
+  const [simCondition, setSimCondition] = useState('Clear');
 
   // Refs
   const imageWrapperRef = useRef(null);
@@ -35,14 +40,37 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
   const roomName = selectedArea.name || selectedArea.room || 'Unknown Room';
 
-  // סנכרון נתונים כשהחדר מתעדכן (למשל מ-Socket)
+  // --- Logic & Effects ---
+  
+  // 1. Fetch Latest Sensor Data (Real or Simulated)
   useEffect(() => {
     if (!selectedArea) return;
 
-    // עדכון סליידר הוילון רק אם אנחנו לא באמצע גרירה ידנית שלו (אופציונלי, כאן פשוט נעדכן)
+    const fetchLatestData = async () => {
+        // If simulation is active, use the values from the area record directly
+        if (selectedArea.is_simulation) {
+            setDisplayTemp(selectedArea.sim_temp || 25);
+            setDisplayLight(selectedArea.sim_light || 5000);
+            setSimTemp(selectedArea.sim_temp || 25);
+            setSimLight(selectedArea.sim_light || 5000);
+        } else {
+            // If real mode, try to get the last recorded values from the area or logs
+            // Assuming backend now updates last_temperature/last_light_intensity on area
+            if (selectedArea.last_temperature !== undefined) {
+                setDisplayTemp(selectedArea.last_temperature);
+                setDisplayLight(selectedArea.last_light_intensity);
+            } else {
+                // Fallback: could fetch from logs API if needed
+            }
+        }
+    };
+    fetchLatestData();
+  }, [selectedArea]);
+
+  useEffect(() => {
+    if (!selectedArea) return;
     setShadePosition(selectedArea.current_position || 0);
 
-    // --- Robust Sensor Parsing ---
     let parsedSensors = [];
     try {
       const rawData = selectedArea.sensor_position;
@@ -51,12 +79,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       } else if (typeof rawData === 'string') {
         const cleaned = rawData.startsWith('"') ? JSON.parse(rawData) : rawData;
         parsedSensors = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
-      } else {
-        parsedSensors = [];
       }
     } catch (e) {
       console.warn("Sensor parse warning:", e);
-      parsedSensors = [];
     }
     setSensors(Array.isArray(parsedSensors) ? parsedSensors : []);
   }, [selectedArea]);
@@ -65,7 +90,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     if (!isSensorEditing) setSensorEditMode('none');
   }, [isSensorEditing]);
 
-  // Fetch History
   useEffect(() => {
     if (showGraph && selectedArea.id) {
       const fetchHistory = async () => {
@@ -84,13 +108,10 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     }
   }, [showGraph, selectedArea.id]);
 
-  // --- פונקציות שליטה (התיקון החדש) ---
-
-  // 1. שליטה ידנית בוילון
+  // --- Handlers ---
   const handleManualControl = async () => {
     setIsSendingCommand(true);
     try {
-        // קובעים מצב (אם זה 0 או 100 זה OPEN/CLOSED, אחרת MANUAL)
         let newState = 'MANUAL';
         if (shadePosition === 0) newState = 'OPEN';
         if (shadePosition === 100) newState = 'CLOSED';
@@ -99,11 +120,8 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             state: newState,
             position: shadePosition
         });
-
-        // רענון הנתונים כדי לוודא שה-DB וה-UI מסונכרנים
         if (onUpdate) onUpdate();
         alert(`Command Sent: ${newState} at ${shadePosition}%`);
-
     } catch (error) {
         console.error("Manual control failed:", error);
         alert("Failed to send command.");
@@ -112,17 +130,14 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     }
   };
 
-  // 2. חזרה למצב אוטומטי
   const handleAutoControl = async () => {
     setIsSendingCommand(true);
     try {
         await axios.put(`${API_BASE_URL}/api/areas/${selectedArea.id}/state`, {
             state: 'AUTO'
         });
-
         if (onUpdate) onUpdate();
         alert("System reverted to AUTO mode.");
-
     } catch (error) {
         console.error("Auto revert failed:", error);
         alert("Failed to revert to auto.");
@@ -131,7 +146,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     }
   };
 
-  // 3. שמירת מיקומי חיישנים
   const handleSaveLayout = async () => {
     try {
       await axios.put(`${API_BASE_URL}/api/areas/${selectedArea.id}/sensor-positions`, {
@@ -141,63 +155,51 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       setTimeout(() => {
         setSensorEditMode('none');   
         setIsSensorEditing(false); 
-        setSaveButtonText('💾 Save & Exit');
+        setSaveButtonText('💾 Save');
         onUpdate(); 
       }, 1500);
     } catch (error) {
       console.error('Save failed:', error);
       setSaveButtonText('Error!');
-      setTimeout(() => setSaveButtonText('💾 Save & Exit'), 2000);
+      setTimeout(() => setSaveButtonText('💾 Save'), 2000);
     }
   };
 
-  // --- סימולציה (מחובר לשרת) ---
-  const handleSimulationUpdate = async () => {
-      try {
-          console.log("🚀 Sending Simulation Request..."); // לוג לדפדפן
-          
-          await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/simulation`, {
-              is_active: true,        // <--- הנה התיקון!!! זה היה חסר
-              isActive: true,         // ליתר ביטחון נשלח בשני השמות
-              temperature: simTemp,
-              light: simLight
-          });
-          
-          alert(`Simulated data injected! AI is evaluating...`);
-          
-          // רענון המסך כדי שנראה את השינוי מיד
-          if (onUpdate) onUpdate(); 
+ const handleSimulationUpdate = async () => {
+    try {
+        // אנחנו משנים את שמות השדות שיתאימו בדיוק למה שה-Controller מצפה לקבל
+        await axios.post(`${API_BASE_URL}/api/sensors/update-sim`, {
+            id: selectedArea.id,
+            isActive: true,
+            temp: simTemp,    // שינוי מ-temperature ל-temp
+            light: simLight,
+            weather_condition: simCondition 
+        });
+        alert(`Simulated data injected!`);
+        if (onUpdate) onUpdate(); 
+    } catch (error) {
+        console.error("Simulation failed:", error);
+        alert("Failed to inject simulation data");
+    }
+};
 
-      } catch (error) {
-          console.error("Simulation failed:", error);
-          alert("Failed to inject simulation data");
-      }
-  };
-
-  // פונקציה ליציאה ממצב סימולציה וחזרה לאמת
   const stopSimulation = async () => {
       try {
-          console.log("🛑 Stopping Simulation...");
-          
           await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/simulation`, {
-              is_active: false,        // <--- הכיבוי הקריטי
-              isActive: false,         // גיבוי
-              temperature: 25,         // ערכים ניטרליים (לא באמת משנה כי השרת יתעלם מהם)
-              light: 500
+              is_active: false,
+              isActive: false,
+              temperature: 25,
+              light: 500,
+              weather_condition: 'Clear'
           });
-          
-          alert(`Simulation Stopped! 🌍 Back to Real Weather.`);
-          
-          // רענון כדי לראות שהסטטוס חזר לרגיל
+          alert(`Simulation Stopped! Back to Real Weather.`);
           if (onUpdate) onUpdate(); 
-
       } catch (error) {
           console.error("Failed to stop simulation:", error);
           alert("Error stopping simulation");
       }
   };
 
-  // --- Image & Sensor Dragging Logic ---
   const handleImageClick = (e) => {
     if (sensorEditMode !== 'add') return;
     const rect = imageWrapperRef.current.getBoundingClientRect();
@@ -241,20 +243,18 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setIsUploading(true);
     const formData = new FormData();
     formData.append('roomImage', file);
-
     try {
       await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      alert('Image updated successfully!');
+      alert('Image updated!');
       onUpdate(); 
     } catch (error) {
       console.error('Image upload failed:', error);
-      alert('Failed to upload image.');
+      alert('Failed to upload.');
     } finally {
       setIsUploading(false);
     }
@@ -263,162 +263,217 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const getRoomImageSrc = () => {
       const path = selectedArea.map_file_path || selectedArea.map_image;
       if (!path) return null;
-      if (path.startsWith('http')) return path;
-      return path;
+      return path.startsWith('http') ? path : path;
   };
 
+  const getWeatherIcon = (condition) => {
+      if (condition === 'Storm') return '⛈️';
+      if (condition === 'Rain') return '🌧️';
+      if (condition === 'Cloudy') return '☁️';
+      return '☀️';
+  };
+
+  const getSensorBadgeClass = (temp) => {
+      if (temp < 20) return 'sensor-badge cold';
+      if (temp > 26) return 'sensor-badge hot';
+      return 'sensor-badge optimal';
+  };
+
+  // --- RENDER ---
   return (
     <div className="room-dashboard-container">
+      
+      {/* 1. Header */}
       <div className="room-dashboard-header">
         <button className="back-button" onClick={onBack}>← Back to Map</button>
         <h2>{roomName}</h2>
-        {user?.role === 'admin' && (
-          <button 
-            className="header-icon-btn" 
-            onClick={() => fileInputRef.current.click()} 
-            title="Change Room Image"
-            disabled={isUploading}
-          >
-            {isUploading ? 'Uploading...' : '🖼️ Upload Image'}
-          </button>
-        )}
-      </div>
-
-      <div 
-        className="room-image-wrapper" 
-        ref={imageWrapperRef} 
-        onClick={handleImageClick}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        style={{ cursor: sensorEditMode === 'add' ? 'crosshair' : 'default' }}
-      >
-        {user?.role === 'admin' && (
-          <div className="floating-toolbar">
-            {!isSensorEditing ? (
-              <button onClick={() => setIsSensorEditing(true)}>✏️ Edit Sensors</button>
-            ) : (
-              <>
-                <button className={sensorEditMode === 'add' ? 'active' : ''} onClick={() => setSensorEditMode(prev => prev === 'add' ? 'none' : 'add')}>➕ Add</button>
-                <button className={sensorEditMode === 'move' ? 'active' : ''} onClick={() => setSensorEditMode(prev => prev === 'move' ? 'none' : 'move')}>✋ Move</button>
-                <button className={sensorEditMode === 'delete' ? 'active' : ''} onClick={() => setSensorEditMode(prev => prev === 'delete' ? 'none' : 'delete')}>🗑️ Delete</button>
-                <button onClick={handleSaveLayout}>{saveButtonText}</button>
-              </>
-            )}
-          </div>
-        )}
         
-        {getRoomImageSrc() ? (
-            <img 
-                src={getRoomImageSrc()} 
-                alt={`${roomName} layout`} 
-                className="room-image"
-                onError={(e) => {
-                    e.target.onerror = null; 
-                    e.target.src = '/room206_sketch.png';
-                }}
-            />
-        ) : (
-            <div className="image-placeholder">Waiting for image...</div>
-        )}
-        
-        {sensors.map(sensor => (
-          <div
-            key={sensor.id}
-            className="sensor-indicator"
-            style={{ 
-              left: `${sensor.x}%`, 
-              top: `${sensor.y}%`,
-              backgroundColor: getShadeColor(shadePosition),
-              cursor: sensorEditMode === 'move' ? 'grab' : (sensorEditMode === 'delete' ? 'pointer' : 'default')
-            }}
-            draggable={sensorEditMode === 'move'}
-            onDragStart={(e) => handleDragStart(e, sensor)}
-            onClick={(e) => handleSensorClick(e, sensor)}
-          >
-            {Math.round(sensor.temp || 24)}°
-          </div>
-        ))}
-      </div>
-
-      {/* --- אזור השליטה המתוקן --- */}
-      <div className="room-dashboard-controls">
-        
-        {/* סטטוס נוכחי */}
-        <div className="control-group">
-          <label>Shade Status</label>
-          <div className="status-display">
-             <span className="status-text" style={{ color: getShadeColor(shadePosition) }}>
-                {shadePosition}% ({selectedArea.shade_state})
-             </span>
-             {selectedArea.shade_state === 'MANUAL' && <span className="badge-manual">MANUAL</span>}
-             {selectedArea.shade_state === 'AUTO' && <span className="badge-auto">AUTO</span>}
-          </div>
-        </div>
-
-        {/* שליטה ידנית */}
-        <div className="control-group">
-          <label>Manual Control</label>
-          <div className="slider-container">
-            <input 
-                type="range" min="0" max="100" 
-                value={shadePosition} 
-                onChange={(e) => setShadePosition(parseInt(e.target.value))} 
-            />
-            <span>{shadePosition}%</span>
-          </div>
-          <div className="button-group">
-            <button onClick={handleManualControl} disabled={isSendingCommand}>
-                {isSendingCommand ? 'Sending...' : '⚡ Send Command'}
-            </button>
-            <button onClick={handleAutoControl} className="outline-btn" disabled={isSendingCommand}>
-                🔄 Revert to Auto
-            </button>
-          </div>
-        </div>
-
-        {/* --- אזור סימולציה חדש (Test Mode) --- */}
-        <div className="control-group simulation-group" style={{borderTop: '1px solid #444', marginTop: '10px', paddingTop: '10px'}}>
-            <label>🧪 Simulation (Test AI)</label>
-              <div className="sim-controls">
-                    <div className="sim-slider">
-                        <span>Temp: {simTemp}°C</span>
-                        <input type="range" min="0" max="50" value={simTemp} onChange={(e) => setSimTemp(parseInt(e.target.value))} />
-                    </div>
-                    
-                    <div className="sim-slider">
-                         {/* הסליידר החדש של האור (0-100) */}
-                        <span>Light: {simLight / 100}% <small style={{color:'#7f8c8d'}}>({simLight} lx)</small></span>
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max="100" 
-                            step="1" 
-                            value={simLight / 100} 
-                            onChange={(e) => setSimLight(parseInt(e.target.value) * 100)} 
-                        />
-                    </div>
-                    
-                    <div style={{display: 'flex', gap: '10px'}}>
-                        <button onClick={handleSimulationUpdate} className="sim-btn">🚀 Inject</button>
-                        
-                        {/* --- הכפתור החדש --- */}
-                        <button 
-                            onClick={stopSimulation} 
-                            className="sim-btn" 
-                            style={{backgroundColor: '#e74c3c', border: '1px solid #c0392b'}}
-                        >
-                            🌍 Real Data
+        <div style={{ display: 'flex', gap: '10px' }}>
+            {user?.role === 'admin' && (
+                !isSensorEditing ? (
+                    <>
+                        <button className="header-icon-btn" onClick={() => setIsSensorEditing(true)}>✏️ Edit Sensors</button>
+                        <button className="header-icon-btn" onClick={() => fileInputRef.current.click()} disabled={isUploading}>
+                            {isUploading ? 'Uploading...' : '🖼️ Upload Image'}
                         </button>
+                    </>
+                ) : (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '5px', paddingRight: '10px', borderRight: '1px solid #ddd', alignItems: 'center' }}>
+                            <button className={`header-icon-btn ${sensorEditMode === 'add' ? 'active' : ''}`} onClick={() => setSensorEditMode(prev => prev === 'add' ? 'none' : 'add')} title="Add Sensor">➕ Add</button>
+                            <button className={`header-icon-btn ${sensorEditMode === 'move' ? 'active' : ''}`} onClick={() => setSensorEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Sensor">✋ Move</button>
+                            <button className={`header-icon-btn ${sensorEditMode === 'delete' ? 'active' : ''}`} onClick={() => setSensorEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Sensor">🗑️ Delete</button>
+                        </div>
+                        <button className="action-btn secondary" onClick={() => { setIsSensorEditing(false); setSensorEditMode('none'); onUpdate(); }} style={{ padding: '6px 16px', background: '#95a5a6', color: 'white' }}>✖ Cancel</button>
+                        <button className="action-btn primary" onClick={handleSaveLayout} style={{ padding: '6px 16px' }}>{saveButtonText}</button>
+                    </div>
+                )
+            )}
+        </div>
+      </div>
+
+      {/* 2. Main Layout */}
+      <div className="dashboard-grid">
+        
+        {/* === Map Panel === */}
+        <div className="map-panel">
+            <div 
+                className="room-image-wrapper" 
+                ref={imageWrapperRef} 
+                onClick={handleImageClick}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                style={{ cursor: sensorEditMode === 'add' ? 'crosshair' : 'default' }}
+            >
+                {/* Data Overlay (Top-Left) */}
+                <div className="data-overlay">
+                    <span>{getWeatherIcon(simCondition)}</span>
+                    <span>🌡️ {displayTemp}°C</span>
+                    <span>💡 {displayLight} lx</span>
+                </div>
+                
+                {getRoomImageSrc() ? (
+                    <img 
+                        src={getRoomImageSrc()} 
+                        alt={`${roomName} layout`} 
+                        className="room-image"
+                        onError={(e) => {
+                            e.target.onerror = null; 
+                            e.target.src = '/room206_sketch.png';
+                        }}
+                    />
+                ) : (
+                    <div className="image-placeholder">Waiting for image...</div>
+                )}
+                
+                {sensors.map(sensor => (
+                <div
+                    key={sensor.id}
+                    className={getSensorBadgeClass(displayTemp)} // Use dynamic class
+                    style={{ 
+                        left: `${sensor.x}%`, 
+                        top: `${sensor.y}%`,
+                        cursor: sensorEditMode === 'move' ? 'grab' : (sensorEditMode === 'delete' ? 'pointer' : 'default')
+                    }}
+                    draggable={sensorEditMode === 'move'}
+                    onDragStart={(e) => handleDragStart(e, sensor)}
+                    onClick={(e) => handleSensorClick(e, sensor)}
+                >
+                    {Math.round(displayTemp)}°
+                </div>
+                ))}
+            </div>
+        </div>
+
+        {/* === Controls Sidebar === */}
+        <div className="controls-sidebar">
+            
+            {/* 1. Status */}
+            <div className="control-card">
+                <h3>Shade Status</h3>
+                <div className="status-display-large">
+                    <span style={{ color: getShadeColor(shadePosition) }}>
+                        {shadePosition}% ({selectedArea.shade_state})
+                    </span>
+                </div>
+                <div style={{display:'flex', justifyContent:'center', gap:'10px'}}>
+                    {selectedArea.shade_state === 'MANUAL' && <span className="badge-manual">MANUAL</span>}
+                    {selectedArea.shade_state === 'AUTO' && <span className="badge-auto">AUTO</span>}
+                </div>
+            </div>
+
+            {/* 2. Manual Control */}
+            <div className="control-card">
+                <h3>Manual Control</h3>
+                <div className="slider-container" style={{marginBottom:'10px', flexDirection:'column', alignItems:'stretch'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', color:'#666'}}>
+                        <span>Closed</span>
+                        <span>Open</span>
+                    </div>
+                    <input 
+                        type="range" min="0" max="100" 
+                        value={shadePosition} 
+                        onChange={(e) => setShadePosition(parseInt(e.target.value))} 
+                        style={{width:'100%', margin:'10px 0'}}
+                    />
+                    <div style={{textAlign:'center', fontWeight:'bold'}}>{shadePosition}%</div>
+                </div>
+                <div className="card-actions">
+                    <button onClick={handleManualControl} disabled={isSendingCommand} className="action-btn primary">
+                        {isSendingCommand ? 'Sending...' : '⚡ Send'}
+                    </button>
+                    <button onClick={handleAutoControl} disabled={isSendingCommand} className="action-btn secondary">
+                        🔄 Auto
+                    </button>
+                </div>
+            </div>
+
+            {/* 3. Simulation */}
+            <div className="control-card simulation-group">
+                <h3>🧪 Simulation (Test AI)</h3>
+                <div className="sim-controls" style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                    
+                    <div className="sim-slider">
+                        <label>Weather Condition</label>
+                        <select value={simCondition} onChange={(e) => setSimCondition(e.target.value)} style={{width:'100%', padding:'5px', borderRadius:'4px', border:'1px solid #ccc'}}>
+                            <option value="Clear">☀️ Clear</option>
+                            <option value="Cloudy">☁️ Cloudy</option>
+                            <option value="Rain">🌧️ Rain</option>
+                            <option value="Storm">⛈️ Storm</option>
+                        </select>
+                    </div>
+
+                    <div className="sim-slider">
+                        <label>Temp: {simTemp}°C</label>
+                        <input type="range" min="0" max="50" value={simTemp} onChange={(e) => setSimTemp(parseInt(e.target.value))} style={{width:'100%'}}/>
+                    </div>
+                    
+                    <div className="sim-slider">
+                    {/* תצוגה כפולה: גם אחוזים וגם לוקס בסוגריים כדי שתדע מה נשלח */}
+                    <span>Light: {simLight / 100}% <small style={{color:'#7f8c8d'}}>({simLight} lx)</small></span>
+                    
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="100"      // הסליידר זז מ-0 עד 100
+                        step="1" 
+                        value={simLight / 100} // מציגים את הערך באחוזים
+                        onChange={(e) => {
+                            const percent = parseInt(e.target.value);
+                            setSimLight(percent * 100); // ממירים ללוקס (0-10000) לשמירה ב-State
+                        }} 
+                    />
+                </div>
+                    
+                    <div style={{display: 'flex', flexDirection:'column', gap: '8px', marginTop:'10px'}}>
+                        <button onClick={handleSimulationUpdate} className="action-btn sim-btn">🚀 Inject Data</button>
+                        <button onClick={stopSimulation} className="action-btn stop-btn">🌍 Stop / Real Weather</button>
                     </div>
                 </div>
-        </div>
+            </div>
 
-        <div className="control-group">
-          <label>Analysis</label>
-          <button onClick={() => setShowGraph(true)}>View History</button>
+            {/* 4. History Button (כפתור נקי ללא כותרת) */}
+            <div className="control-card">
+                <button 
+                    onClick={() => setShowGraph(true)} 
+                    className="action-btn secondary" 
+                    style={{
+                        width:'100%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '8px'
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 
+                    View History
+                </button>
+            </div>
+
         </div>
       </div>
 
+      {/* Modals & Hidden Inputs */}
       {showGraph && (
         <div className="graph-overlay">
             <div className="graph-content">
@@ -433,9 +488,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       )}
 
       {user?.role === 'admin' && (
-        <div>
-            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} accept="image/*" />
-        </div>
+        <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} accept="image/*" />
       )}
     </div>
   );

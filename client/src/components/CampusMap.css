@@ -118,7 +118,9 @@
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     display: flex;
-    gap: 8px;
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: stretch;
+    gap: 10px;
     
     /* --- התיקון החשוב: --- */
     width: fit-content; /* מכריח את הקופסה להיות בדיוק ברוחב של הכפתורים */
@@ -149,4 +151,38 @@
     color: white;
     border-color: #4338ca;
     box-shadow: 0 2px 5px rgba(79, 70, 229, 0.4);
+}
+
+/* Standalone Control Buttons (Edit/Exit) */
+.map-control-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1010;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+/* Group container for Save/Cancel */
+.map-control-group {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1010;
+    display: flex;
+    gap: 10px;
+}
+
+.map-action-btn {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.1);
+    cursor: pointer;
+    color: white;
 }
