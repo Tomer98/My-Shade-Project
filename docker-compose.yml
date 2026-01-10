@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # שירות 1: מסד הנתונים MySQL
   mysqldb:
@@ -35,10 +37,10 @@ services:
       - JWT_SECRET=mysupersecretkey
       - CORS_ORIGINS=http://localhost:5173
     
-    # --- תוספת קריטית: שמירת התמונות גם מחוץ לדוקר ---
+    # --- התיקון הגדול: סנכרון קבצים בזמן אמת ---
     volumes:
-      # מחבר את תיקיית uploads במחשב שלך לתיקייה בתוך הדוקר
-      # הנחה: ה-Dockerfile שלך משתמש ב-WORKDIR /app
+      - ./server:/app             # <--- זה משקף את הקוד שלך לתוך הדוקר!
+      - /app/node_modules         # <--- זה שומר על הספריות הפנימיות של הדוקר
       - ./server/uploads:/app/uploads
       
     depends_on:
