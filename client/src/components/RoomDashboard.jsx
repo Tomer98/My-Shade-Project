@@ -154,7 +154,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   // --- סימולציה (מחובר לשרת) ---
   const handleSimulationUpdate = async () => {
       try {
+          console.log("🚀 Sending Simulation Request..."); // לוג לדפדפן
+          
           await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/simulation`, {
+              is_active: true,        // <--- הנה התיקון!!! זה היה חסר
+              isActive: true,         // ליתר ביטחון נשלח בשני השמות
               temperature: simTemp,
               light: simLight
           });
@@ -167,6 +171,29 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       } catch (error) {
           console.error("Simulation failed:", error);
           alert("Failed to inject simulation data");
+      }
+  };
+
+  // פונקציה ליציאה ממצב סימולציה וחזרה לאמת
+  const stopSimulation = async () => {
+      try {
+          console.log("🛑 Stopping Simulation...");
+          
+          await axios.post(`${API_BASE_URL}/api/areas/${selectedArea.id}/simulation`, {
+              is_active: false,        // <--- הכיבוי הקריטי
+              isActive: false,         // גיבוי
+              temperature: 25,         // ערכים ניטרליים (לא באמת משנה כי השרת יתעלם מהם)
+              light: 500
+          });
+          
+          alert(`Simulation Stopped! 🌍 Back to Real Weather.`);
+          
+          // רענון כדי לראות שהסטטוס חזר לרגיל
+          if (onUpdate) onUpdate(); 
+
+      } catch (error) {
+          console.error("Failed to stop simulation:", error);
+          alert("Error stopping simulation");
       }
   };
 
@@ -352,17 +379,38 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         {/* --- אזור סימולציה חדש (Test Mode) --- */}
         <div className="control-group simulation-group" style={{borderTop: '1px solid #444', marginTop: '10px', paddingTop: '10px'}}>
             <label>🧪 Simulation (Test AI)</label>
-            <div className="sim-controls">
-                <div className="sim-slider">
-                    <span>Temp: {simTemp}°C</span>
-                    <input type="range" min="0" max="50" value={simTemp} onChange={(e) => setSimTemp(parseInt(e.target.value))} />
+              <div className="sim-controls">
+                    <div className="sim-slider">
+                        <span>Temp: {simTemp}°C</span>
+                        <input type="range" min="0" max="50" value={simTemp} onChange={(e) => setSimTemp(parseInt(e.target.value))} />
+                    </div>
+                    
+                    <div className="sim-slider">
+                         {/* הסליידר החדש של האור (0-100) */}
+                        <span>Light: {simLight / 100}% <small style={{color:'#7f8c8d'}}>({simLight} lx)</small></span>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            step="1" 
+                            value={simLight / 100} 
+                            onChange={(e) => setSimLight(parseInt(e.target.value) * 100)} 
+                        />
+                    </div>
+                    
+                    <div style={{display: 'flex', gap: '10px'}}>
+                        <button onClick={handleSimulationUpdate} className="sim-btn">🚀 Inject</button>
+                        
+                        {/* --- הכפתור החדש --- */}
+                        <button 
+                            onClick={stopSimulation} 
+                            className="sim-btn" 
+                            style={{backgroundColor: '#e74c3c', border: '1px solid #c0392b'}}
+                        >
+                            🌍 Real Data
+                        </button>
+                    </div>
                 </div>
-                <div className="sim-slider">
-                    <span>Light: {simLight}%</span>
-                    <input type="range" min="0" max="100" value={simLight} onChange={(e) => setSimLight(parseInt(e.target.value))} />
-                </div>
-                <button onClick={handleSimulationUpdate} className="sim-btn">🚀 Inject Data</button>
-            </div>
         </div>
 
         <div className="control-group">
