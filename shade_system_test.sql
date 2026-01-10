@@ -36,11 +36,20 @@ CREATE TABLE areas (
     shade_state VARCHAR(50) DEFAULT 'AUTO',
     current_position INT DEFAULT 0,
     last_manual_change DATETIME DEFAULT NULL,
+    
+    -- Real-Time Sensor & Simulation Cache
+    weather_condition VARCHAR(50) DEFAULT 'Clear',
+    last_temperature FLOAT DEFAULT 0,
+    last_light_intensity FLOAT DEFAULT 0,
+    is_simulation BOOLEAN DEFAULT FALSE,
+    sim_temp FLOAT DEFAULT 25.0,
+    sim_light FLOAT DEFAULT 500.0,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO areas (building_number, floor, room, description, map_coordinates) VALUES 
-(5, 2, 'Classroom 206', 'Sunny Side', '{"top": 40, "left": 20}'),
+(5, 2, 'Classroom 216', 'Sunny Side', '{"top": 40, "left": 20}'),
 (6, 1, 'Auditorium', 'Main Hall', '{"top": 60, "left": 50}');
 
 -- 3. טבלת לוגים רגילה
@@ -50,6 +59,7 @@ CREATE TABLE logs (
     temperature FLOAT DEFAULT 0,
     light_intensity FLOAT DEFAULT 0,
     current_position INT DEFAULT 0,
+    action_type VARCHAR(50),
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
 );
@@ -64,6 +74,9 @@ CREATE TABLE weather_logs (
     temp FLOAT,
     light_level FLOAT,
     condition_text VARCHAR(50), 
+    weather_condition VARCHAR(50) DEFAULT 'Clear',
+    clouds FLOAT DEFAULT 0,
+    precipitation FLOAT DEFAULT 0,
     decision VARCHAR(50),       
     reason VARCHAR(255),
     score FLOAT DEFAULT 0,  -- הוספתי את זה כדי למנוע צורך בתיקון עתידי

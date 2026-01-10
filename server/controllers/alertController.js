@@ -34,10 +34,33 @@ exports.createAlert = async (req, res) => {
     }
 
     try {
-        await db.query(
+        // 1. Insert the Alert
+        const [result] = await db.query(
             'INSERT INTO alerts (area_id, created_by, description, priority) VALUES (?, ?, ?, ?)',
             [area_id, created_by, description, priority || 'Medium']
         );
+
+        // 2. Sync to Logs: Insert a corresponding record into the logs table
+        await db.query(
+            "INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type) VALUES (?, 0, 0, 0, 'NEW_ALERT')",
+            [area_id]
+        );
+
+        // 3. Emit Socket Events
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_log', {
+                action_type: 'NEW_ALERT',
+                room: 'System Alert',
+                message: description,
+                recorded_at: new Date(),
+                temperature: 0,
+                light_intensity: 0,
+                current_position: 0
+            });
+            io.emit('refresh_alerts');
+        }
+
         res.json({ success: true, message: 'Alert created successfully' });
     } catch (error) {
         console.error('Error creating alert:', error);

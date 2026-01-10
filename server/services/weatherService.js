@@ -17,6 +17,7 @@ exports.getCurrentWeather = async () => {
 
         // 1. שליפת הטמפרטורה האמיתית
         const temp = data.main.temp;
+        const condition = data.weather && data.weather[0] ? data.weather[0].main : 'Clear';
 
         // 2. חישוב חכם של עוצמת האור (Lux)
         // ה-API נותן אחוז עננים (clouds.all) ושעת זריחה/שקיעה
@@ -40,7 +41,7 @@ exports.getCurrentWeather = async () => {
 
         console.log(`🌍 Real Weather fetched for ${CITY}: ${temp}°C, Clouds: ${clouds}%, Calc Light: ${light.toFixed(0)}lx`);
 
-        return { temp, light: Math.round(light) };
+        return { temp, light: Math.round(light), condition, clouds };
 
     } catch (error) {
         console.error("❌ Weather API Error:", error.message);
@@ -52,6 +53,8 @@ exports.getCurrentWeather = async () => {
 function getRandomData() {
     return {
         temp: (20 + Math.random() * 10).toFixed(1),
-        light: Math.floor(Math.random() * 1000)
+        light: Math.floor(Math.random() * 1000),
+        condition: 'Clear',
+        clouds: Math.floor(Math.random() * 100)
     };
 }

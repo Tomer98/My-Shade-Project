@@ -166,21 +166,24 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     return (
         <div className="map-scroll-wrapper">
             {user?.role === 'admin' && (
-                <div 
-                    className="floating-toolbar" 
-                    onClick={(e) => e.stopPropagation()} /* עוצר את התפשטות הלחיצה ומונע את הבאג */
-                >
+                <>
+                    {/* 1. Main Control Button (Top-Left) */}
                     {!isMapEditing ? (
-                        <button onClick={() => setIsMapEditing(true)}>✏️ Edit Map</button>
+                        <button className="map-control-btn" style={{background: 'white', color: '#333'}} onClick={() => setIsMapEditing(true)}>✏️ Edit Map</button>
                     ) : (
-                        <>
-                            <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')}>➕ Add</button>
-                            <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')}>✋ Move</button>
-                            <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')}>🗑️ Delete</button>
-                            <button onClick={handleSaveAndExit}>💾 Exit Edit</button>
-                        </>
+                        <div 
+                            className="floating-toolbar" 
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')} title="Add Room">➕</button>
+                            <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Room">✋</button>
+                            <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Room">🗑️</button>
+                            <div style={{ width: '100%', height: '1px', background: '#ddd', margin: '5px 0' }}></div>
+                            <button style={{background: '#2ecc71', color: 'white', borderColor: '#27ae60'}} onClick={() => setIsMapEditing(false)}>💾 Save</button>
+                            <button style={{background: '#95a5a6', color: 'white', borderColor: '#7f8c8d'}} onClick={() => { setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
+                        </div>
                     )}
-                </div>
+                </>
             )}
             <div
                 ref={mapWrapperRef}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const SmartDashboard = () => {
-  const [metrics, setMetrics] = useState({ temp: 0, light: 0, score: 0, decision: 'WAITING', reason: 'Loading...' });
+  const [metrics, setMetrics] = useState({ temp: 0, light: 0, clouds: 0, score: 0, decision: 'WAITING', reason: 'Loading...' });
 
   const fetchSmartData = async () => {
     try {
@@ -41,6 +41,7 @@ const SmartDashboard = () => {
       {/* אמצע: נתונים בשורה אחת */}
       <div style={{ display: 'flex', gap: '20px', color: '#555' }}>
         <span>🌡️ <b>{metrics.temp}°C</b></span>
+        <span>☁️ <b>{metrics.clouds}%</b></span>
         <span>☀️ <b>{metrics.light} lx</b></span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             📊 Score: <b>{metrics.score?.toFixed(2)}</b>
