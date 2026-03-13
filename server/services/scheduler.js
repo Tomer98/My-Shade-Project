@@ -86,7 +86,8 @@ const initScheduler = (io) => {
 
             for (const area of areas) {
                 // דילוג על מצב ידני
-                if (area.shade_state === 'MANUAL') continue;
+                // תיקון: בודקים גם אם יש חותמת זמן לשינוי ידני (כדי לכבד מצבים כמו CLOSED/OPEN שהמשתמש קבע)
+                if (area.shade_state === 'MANUAL' || area.last_manual_change) continue;
 
                 let currentTemp, currentLight, currentCondition, isSimulated;
 
@@ -145,14 +146,25 @@ const initScheduler = (io) => {
                 );
 
                 // 2. תיעוד לוגים (כולל סוג האירוע החדש action_type)
-                await db.query(
+                const [logResult] = await db.query(
                     `INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type)
                     VALUES (?, ?, ?, ?, ?)`, 
                     [area.id, currentTemp, currentLight, targetPosition, decision.actionType] 
                 );
 
                 // 3. עדכון ה-Frontend בזמן אמת
-                if (ioInstance) ioInstance.emit('refresh_areas');
+                if (ioInstance) {
+                    ioInstance.emit('refresh_areas');
+                    ioInstance.emit('new_log', {
+                        id: logResult.insertId,
+                        room: area.room,
+                        temperature: currentTemp,
+                        light_intensity: currentLight,
+                        current_position: targetPosition,
+                        action_type: decision.actionType,
+                        recorded_at: new Date()
+                    });
+                }
             }
         } catch (error) {
             console.error('Scheduler Cycle Error:', error.message);

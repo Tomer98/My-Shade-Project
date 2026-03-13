@@ -44,14 +44,29 @@ exports.createArea = async (req, res) => {
         if (typeof coordsToSave === 'object') coordsToSave = JSON.stringify(coordsToSave);
         
         const initialSensor = JSON.stringify([{ top: '50%', left: '50%', size: '50px' }]);
-
         const sql = 'INSERT INTO areas (room, description, map_file_path, map_coordinates, sensor_position, shade_state, current_position) VALUES (?, ?, ?, ?, ?, "AUTO", 0)';
         
         const [result] = await db.query(sql, [room, description, imagePath, coordsToSave, initialSensor]);
         
-        if (req.io) req.io.emit('refresh_areas');
-
         console.log("✅ Area Created Successfully, ID:", result.insertId);
+
+        try {
+            await db.query(
+                "INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type) VALUES (?, 0, 0, 0, 'ROOM_CREATED')",
+                [result.insertId]
+            );
+            if (req.io) {
+                req.io.emit('new_log', {
+                    action_type: 'ROOM_CREATED',
+                    room: room,
+                    recorded_at: new Date()
+                });
+                req.io.emit('refresh_areas');
+            }
+        } catch (logErr) {
+            console.error("⚠️ Log failed (room still created):", logErr.message);
+        }
+
         res.status(201).json({ success: true, message: 'Area created', id: result.insertId });
 
     } catch (error) {
@@ -141,6 +156,21 @@ exports.updateAreaState = async (req, res) => {
 
         await db.query(query, params);
         if (req.io) req.io.emit('refresh_areas');
+        // Log: Manual state change
+        const [areaInfo] = await db.query('SELECT room FROM areas WHERE id = ?', [id]);
+        const roomName = areaInfo[0]?.room || 'Unknown';
+        const actionType = state === 'OPEN' ? 'OPENED' : state === 'CLOSED' ? 'CLOSED' : 'AUTO';
+
+        await db.query(
+            "INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type) VALUES (?, 0, 0, ?, ?)",
+            [id, newPosition, actionType]
+        );
+        if (req.io) req.io.emit('new_log', {
+            action_type: actionType,
+            room: roomName,
+            current_position: newPosition,
+            recorded_at: new Date()
+        });
         res.json({ success: true, message: 'State updated', newPosition });
     } catch (error) {
         console.error(error);
@@ -169,11 +199,23 @@ exports.updateGlobalState = async (req, res) => {
 exports.deleteArea = async (req, res) => {
     const { id } = req.params;
     try {
+        const [areaInfo] = await db.query('SELECT room FROM areas WHERE id = ?', [id]);
+        const roomName = areaInfo[0]?.room || 'Unknown';
+
         await db.query('DELETE FROM logs WHERE area_id = ?', [id]);
         await db.query('DELETE FROM schedules WHERE area_id = ?', [id]);
         await db.query('DELETE FROM alerts WHERE area_id = ?', [id]);
         await db.query('DELETE FROM areas WHERE id = ?', [id]);
-        if (req.io) req.io.emit('refresh_areas');
+
+        if (req.io) {
+            req.io.emit('new_log', {
+                action_type: 'ROOM_DELETED',
+                room: roomName,
+                recorded_at: new Date()
+            });
+            req.io.emit('refresh_areas');
+        }
+
         res.json({ success: true, message: 'Area deleted.' });
     } catch (error) {
         console.error(error);

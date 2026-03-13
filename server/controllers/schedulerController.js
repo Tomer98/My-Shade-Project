@@ -33,11 +33,10 @@ exports.createSchedule = async (req, res) => {
         );
 
         // 2. Emit Socket Event
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('new_log', {
+        if (req.io) {
+            req.io.emit('new_log', {
                 action_type: 'NEW_SCHEDULE',
-                room: 'System Schedule',
+                room: 'System',
                 message: `Scheduled ${action_type} at ${execution_time}`,
                 recorded_at: new Date(),
                 temperature: 0,
