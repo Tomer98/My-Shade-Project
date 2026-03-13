@@ -47,9 +47,9 @@ exports.createAlert = async (req, res) => {
         );
 
         // 3. Emit Socket Events
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('new_log', {
+        if (req.io) 
+        {
+            req.io.emit('new_log', {
                 action_type: 'NEW_ALERT',
                 room: 'System Alert',
                 message: description,
@@ -58,7 +58,7 @@ exports.createAlert = async (req, res) => {
                 light_intensity: 0,
                 current_position: 0
             });
-            io.emit('refresh_alerts');
+            req.io.emit('refresh_alerts');
         }
 
         res.json({ success: true, message: 'Alert created successfully' });
