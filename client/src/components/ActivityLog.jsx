@@ -1,9 +1,4 @@
-import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
 import './ActivityLog.css';
-
-// TODO: In production, move this to an environment variable (e.g., import.meta.env.VITE_SOCKET_URL)
-const SOCKET_URL = 'http://localhost:3001';
 
 /**
  * Helper function to determine the visual styling and icon for each log type.
@@ -43,32 +38,10 @@ const getLogDisplayData = (log) => {
 
 /**
  * ActivityLog Component
- * Displays a real-time list of system events, connecting directly to the server via WebSockets.
+ * Pure display component: receives 'logs' as a prop and renders them.
+ * Socket connection and state management are now handled by the parent component (App.jsx).
  */
-const ActivityLog = ({ initialLogs = [] }) => {
-    const [logs, setLogs] = useState(initialLogs);
-
-    // Initialize WebSocket connection for real-time updates
-    useEffect(() => {
-        const socket = io(SOCKET_URL);
-
-        // Listen for new logs and add them to the top of the list
-        // Keeps only the latest 50 logs to prevent performance degradation over time
-        socket.on('new_log', (newLog) => {
-            setLogs(prevLogs => [newLog, ...prevLogs].slice(0, 50));
-        });
-
-        // Cleanup function: Disconnect socket when component unmounts to prevent memory leaks
-        return () => socket.disconnect();
-    }, []);
-
-    // Sync state if parent component passes down a new array of initial logs
-    useEffect(() => {
-        if (initialLogs.length > 0) {
-            setLogs(initialLogs);
-        }
-    }, [initialLogs]);
-
+const ActivityLog = ({ logs = [] }) => {
     return (
         <div className="activity-log-container">
             {/* Header Area */}
