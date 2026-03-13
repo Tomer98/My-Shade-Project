@@ -1,87 +1,177 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
+import './SchedulerPanel.css'; // הייבוא החדש שלנו!
 
+// TODO: In production, move to .env file
+const API_BASE_URL = 'http://localhost:3001/api';
+
+/**
+ * Safely retrieves the authorization header from localStorage.
+ * Kept outside to prevent recreation on every render and adds error handling.
+ */
+const getAuthHeader = () => {
+    try {
+        const savedUser = localStorage.getItem('shade_app_user');
+        if (!savedUser) return null;
+        const token = JSON.parse(savedUser)?.token;
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : null;
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
+ * SchedulerPanel Component
+ * Allows admins to schedule automated open/close actions for specific rooms.
+ */
 const SchedulerPanel = () => {
     const [schedules, setSchedules] = useState([]);
     const [areas, setAreas] = useState([]);
     const [newTask, setNewTask] = useState({ area_id: '', execution_time: '', action_type: 'OPEN' });
     
-    // שליפת הטוקן לאבטחה
-    const getAuthHeader = () => {
-        const token = JSON.parse(localStorage.getItem('shade_app_user'))?.token;
-        return { headers: { Authorization: `Bearer ${token}` } };
+    // UI State for replacing window.alert()
+    const [message, setMessage] = useState({ text: '', type: '' });
+
+    const showNotification = (text, type) => {
+        setMessage({ text, type });
+        setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     };
 
     const fetchData = async () => {
+        const config = getAuthHeader();
+        if (!config) return;
+
         try {
             const [schedRes, areasRes] = await Promise.all([
-                axios.get('http://localhost:3001/api/schedules', getAuthHeader()),
-                axios.get('http://localhost:3001/api/areas', getAuthHeader())
+                axios.get(`${API_BASE_URL}/schedules`, config),
+                axios.get(`${API_BASE_URL}/areas`, config)
             ]);
             setSchedules(schedRes.data.data);
             setAreas(areasRes.data.data || areasRes.data);
-        } catch (err) { console.error("Error loading data", err); }
+        } catch (err) { 
+            console.error("Error loading scheduling data", err); 
+        }
     };
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => { 
+        fetchData(); 
+    }, []);
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        const config = getAuthHeader();
+        
+        if (!config) {
+            showNotification('Session expired. Please login again.', 'error');
+            return;
+        }
+
         try {
-            await axios.post('http://localhost:3001/api/schedules', newTask, getAuthHeader());
+            await axios.post(`${API_BASE_URL}/schedules`, newTask, config);
             setNewTask({ area_id: '', execution_time: '', action_type: 'OPEN' });
-            fetchData(); // רענון הטבלה
-        } catch (err) { alert('Error creating task'); }
+            showNotification('Task scheduled successfully! ⏰', 'success');
+            fetchData(); 
+        } catch (err) { 
+            showNotification('Error creating task', 'error'); 
+        }
     };
 
     const handleDelete = async (id) => {
-        if(!window.confirm('Delete this task?')) return;
+        if(!window.confirm('Are you sure you want to delete this scheduled task?')) return;
+        
+        const config = getAuthHeader();
+        if (!config) return;
+
         try {
-            await axios.delete(`http://localhost:3001/api/schedules/${id}`, getAuthHeader());
+            await axios.delete(`${API_BASE_URL}/schedules/${id}`, config);
+            showNotification('Task deleted', 'success');
             fetchData();
-        } catch (err) { alert('Error deleting'); }
+        } catch (err) { 
+            showNotification('Error deleting task', 'error'); 
+        }
     };
 
     return (
-        <div style={{ padding: '20px', background: 'white', borderRadius: '8px', marginBottom: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ borderBottom: '2px solid #3498db', paddingBottom: '10px', marginTop: 0 }}>📅 Automation Schedule</h3>
+        <div className="scheduler-panel-container">
+            <h3 className="scheduler-header">📅 Automation Schedule</h3>
             
-            {/* טופס הוספה */}
-            <form onSubmit={handleCreate} style={{ display: 'flex', gap: '10px', marginBottom: '20px', background: '#f8f9fa', padding: '15px', borderRadius: '5px' }}>
-                <select required value={newTask.area_id} onChange={e => setNewTask({...newTask, area_id: e.target.value})} style={{ padding: '8px', flex: 1 }}>
+            {/* Notification Area (Replaces alerts) */}
+            {message.text && (
+                <div 
+                    className="notification-message" 
+                    style={{ 
+                        backgroundColor: message.type === 'error' ? '#fadbd8' : '#d5f5e3',
+                        color: message.type === 'error' ? '#c0392b' : '#27ae60' 
+                    }}
+                >
+                    {message.text}
+                </div>
+            )}
+
+            {/* Add Task Form */}
+            <form onSubmit={handleCreate} className="scheduler-form">
+                <select 
+                    required 
+                    className="scheduler-input scheduler-select-room"
+                    value={newTask.area_id} 
+                    onChange={e => setNewTask({...newTask, area_id: e.target.value})} 
+                >
                     <option value="">Select Room...</option>
                     {areas.map(a => <option key={a.id} value={a.id}>{a.room || a.name}</option>)}
                 </select>
-                <input required type="time" value={newTask.execution_time} onChange={e => setNewTask({...newTask, execution_time: e.target.value})} style={{ padding: '8px' }} />
-                <select value={newTask.action_type} onChange={e => setNewTask({...newTask, action_type: e.target.value})} style={{ padding: '8px' }}>
+                
+                <input 
+                    required 
+                    type="time" 
+                    className="scheduler-input"
+                    value={newTask.execution_time} 
+                    onChange={e => setNewTask({...newTask, execution_time: e.target.value})} 
+                />
+                
+                <select 
+                    className="scheduler-input"
+                    value={newTask.action_type} 
+                    onChange={e => setNewTask({...newTask, action_type: e.target.value})} 
+                >
                     <option value="OPEN">☀️ Open</option>
                     <option value="CLOSE">🌑 Close</option>
                 </select>
-                <button type="submit" style={{ background: '#27ae60', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '4px', cursor: 'pointer' }}>Add Task</button>
+                
+                <button type="submit" className="scheduler-submit-btn">Add Task</button>
             </form>
 
-            {/* טבלה */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            {/* Tasks Table */}
+            <table className="scheduler-table">
                 <thead>
-                    <tr style={{ background: '#eee', textAlign: 'left' }}>
-                        <th style={{ padding: '10px' }}>Time</th>
-                        <th style={{ padding: '10px' }}>Room</th>
-                        <th style={{ padding: '10px' }}>Action</th>
-                        <th style={{ padding: '10px' }}>Manage</th>
+                    <tr>
+                        <th>Time</th>
+                        <th>Room</th>
+                        <th>Action</th>
+                        <th>Manage</th>
                     </tr>
                 </thead>
                 <tbody>
                     {schedules.map(task => (
-                        <tr key={task.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '10px' }}><strong>{task.execution_time}</strong></td>
-                            <td style={{ padding: '10px' }}>{task.room}</td>
-                            <td style={{ padding: '10px', color: task.action_type === 'OPEN' ? 'green' : 'red' }}>{task.action_type}</td>
-                            <td style={{ padding: '10px' }}>
-                                <button onClick={() => handleDelete(task.id)} style={{ cursor: 'pointer', background: 'none', border: 'none' }}>🗑️</button>
+                        <tr key={task.id}>
+                            <td><strong>{task.execution_time}</strong></td>
+                            <td>{task.room}</td>
+                            <td className={task.action_type === 'OPEN' ? 'action-open' : 'action-close'}>
+                                {task.action_type}
+                            </td>
+                            <td>
+                                <button onClick={() => handleDelete(task.id)} className="delete-task-btn" title="Delete Task">
+                                    🗑️
+                                </button>
                             </td>
                         </tr>
                     ))}
-                    {schedules.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No tasks scheduled yet.</td></tr>}
+                    {schedules.length === 0 && (
+                        <tr>
+                            <td colSpan="4" className="empty-tasks">
+                                No tasks scheduled yet.
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>
