@@ -1,0 +1,97 @@
+/* SchedulerPanel.css */
+.scheduler-panel-container {
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.scheduler-header {
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.scheduler-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    align-items: center;
+}
+
+.scheduler-input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.scheduler-select-room {
+    flex: 1;
+}
+
+.scheduler-submit-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.scheduler-submit-btn:hover {
+    background: #2ecc71;
+}
+
+.scheduler-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.scheduler-table th {
+    background: #eee;
+    text-align: left;
+    padding: 10px;
+    color: #333;
+}
+
+.scheduler-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.action-open { color: #27ae60; font-weight: bold; }
+.action-close { color: #e74c3c; font-weight: bold; }
+
+.delete-task-btn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    transition: transform 0.2s;
+}
+
+.delete-task-btn:hover {
+    transform: scale(1.1);
+}
+
+.empty-tasks {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+}
+
+.notification-message {
+    margin-bottom: 15px;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
