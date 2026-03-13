@@ -221,7 +221,7 @@ function App() {
 
         {/* Right Side: Sidebar */}
         {!selectedArea && !showUserManagement && !showAlerts && (
-            <ActivityLog initialLogs={globalLogs} />
+            <ActivityLog logs={globalLogs} />
         )}
       </div>
     </div>
