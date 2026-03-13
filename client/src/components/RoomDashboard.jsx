@@ -3,6 +3,7 @@ import axios from 'axios';
 import SensorChart from './SensorChart';
 import { getShadeColor } from '../utils/getShadeColor';
 import './RoomDashboard.css';
+import SensorMap from './SensorMap';
 
 const API_BASE_URL = 'http://localhost:3001';
 
@@ -34,8 +35,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
   const [simCondition, setSimCondition] = useState('Clear');
 
   // Refs
-  const imageWrapperRef = useRef(null);
-  const draggedSensorRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const roomName = selectedArea.name || selectedArea.room || 'Unknown Room';
@@ -200,46 +199,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       }
   };
 
-  const handleImageClick = (e) => {
-    if (sensorEditMode !== 'add') return;
-    const rect = imageWrapperRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    const newSensor = { id: `new-${Date.now()}`, x, y, temp: 21 };
-    setSensors([...sensors, newSensor]);
-  };
-
-  const handleSensorClick = (e, sensor) => {
-    e.stopPropagation();
-    if (sensorEditMode === 'delete') {
-      if (window.confirm('Delete this sensor?')) {
-        setSensors(sensors.filter(s => s.id !== sensor.id));
-      }
-    }
-  };
-
-  const handleDragStart = (e, sensor) => {
-    if (sensorEditMode !== 'move') { e.preventDefault(); return; }
-    draggedSensorRef.current = sensor;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', sensor.id);
-    const emptyImg = new Image();
-    emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    e.dataTransfer.setDragImage(emptyImg, 0, 0);
-  };
-  
-  const handleDragOver = (e) => e.preventDefault();
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (sensorEditMode !== 'move' || !draggedSensorRef.current) return;
-    const rect = imageWrapperRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setSensors(sensors.map(s => s.id === draggedSensorRef.current.id ? { ...s, x, y } : s));
-    draggedSensorRef.current = null;
-  };
-
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -266,18 +225,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       return path.startsWith('http') ? path : path;
   };
 
-  const getWeatherIcon = (condition) => {
-      if (condition === 'Storm') return '⛈️';
-      if (condition === 'Rain') return '🌧️';
-      if (condition === 'Cloudy') return '☁️';
-      return '☀️';
-  };
-
-  const getSensorBadgeClass = (temp) => {
-      if (temp < 20) return 'sensor-badge cold';
-      if (temp > 26) return 'sensor-badge hot';
-      return 'sensor-badge optimal';
-  };
 
   // --- RENDER ---
   return (
@@ -316,54 +263,16 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
       <div className="dashboard-grid">
         
         {/* === Map Panel === */}
-        <div className="map-panel">
-            <div 
-                className="room-image-wrapper" 
-                ref={imageWrapperRef} 
-                onClick={handleImageClick}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                style={{ cursor: sensorEditMode === 'add' ? 'crosshair' : 'default' }}
-            >
-                {/* Data Overlay (Top-Left) */}
-                <div className="data-overlay">
-                    <span>{getWeatherIcon(simCondition)}</span>
-                    <span>🌡️ {displayTemp}°C</span>
-                    <span>💡 {displayLight} lx</span>
-                </div>
-                
-                {getRoomImageSrc() ? (
-                    <img 
-                        src={getRoomImageSrc()} 
-                        alt={`${roomName} layout`} 
-                        className="room-image"
-                        onError={(e) => {
-                            e.target.onerror = null; 
-                            e.target.src = '/room206_sketch.png';
-                        }}
-                    />
-                ) : (
-                    <div className="image-placeholder">Waiting for image...</div>
-                )}
-                
-                {sensors.map(sensor => (
-                <div
-                    key={sensor.id}
-                    className={getSensorBadgeClass(displayTemp)} // Use dynamic class
-                    style={{ 
-                        left: `${sensor.x}%`, 
-                        top: `${sensor.y}%`,
-                        cursor: sensorEditMode === 'move' ? 'grab' : (sensorEditMode === 'delete' ? 'pointer' : 'default')
-                    }}
-                    draggable={sensorEditMode === 'move'}
-                    onDragStart={(e) => handleDragStart(e, sensor)}
-                    onClick={(e) => handleSensorClick(e, sensor)}
-                >
-                    {Math.round(displayTemp)}°
-                </div>
-                ))}
-            </div>
-        </div>
+        <SensorMap 
+            imageSrc={getRoomImageSrc()}
+            roomName={roomName}
+            sensors={sensors}
+            setSensors={setSensors}
+            sensorEditMode={sensorEditMode}
+            displayTemp={displayTemp}
+            displayLight={displayLight}
+            simCondition={simCondition}
+        />
 
         {/* === Controls Sidebar === */}
         <div className="controls-sidebar">
@@ -387,8 +296,8 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 <h3>Manual Control</h3>
                 <div className="slider-container" style={{marginBottom:'10px', flexDirection:'column', alignItems:'stretch'}}>
                     <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', color:'#666'}}>
-                        <span>Closed</span>
                         <span>Open</span>
+                        <span>Closed</span>
                     </div>
                     <input 
                         type="range" min="0" max="100" 
