@@ -1,6 +1,10 @@
 {
-  "dependencies": {
-    "express-rate-limit": "^8.2.1",
-    "helmet": "^8.1.0"
+  "name": "my-shade-project",
+  "version": "1.0.0",
+  "description": "Smart Shade Automation - Full Stack Project",
+  "scripts": {
+    "setup": "cd server && npm install && cd ../client && npm install",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
   }
 }
