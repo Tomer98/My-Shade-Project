@@ -1,5 +1,33 @@
-### בדיקה 1: שליחת נתוני חיישן (כאילו אנחנו החיישן)
-POST http://localhost:3001/api/sensors/data
+# ==========================================
+# 🛠️ API Test Suite - Smart Shade System
+# ==========================================
+
+@baseUrl = http://localhost:3001/api
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+/**
+ * @test    Authentication
+ * @desc    Exchange admin credentials for a valid JWT token.
+ * @route   POST /api/auth/login
+ * @access  Public
+ */
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "password123"
+}
+
+###
+
+/**
+ * @test    Sensor Data Ingestion
+ * @desc    Simulate a physical IoT sensor sending raw data to the server.
+ * @route   POST /api/sensors
+ * @access  Public (Hardware Access)
+ */
+POST {{baseUrl}}/sensors
 Content-Type: application/json
 
 {
@@ -8,11 +36,24 @@ Content-Type: application/json
     "light_intensity": 800
 }
 
-{
-    "area_id": 2,
-    "temperature": 32.5,
-    "light_intensity": 400
-}
+###
 
-### בדיקה 2: קריאת הנתונים ששמרנו
-GET http://localhost:3001/api/sensors/history/1
+/**
+ * @test    Sensor History Retrieval
+ * @desc    Fetch historical logs for a specific area to populate frontend charts.
+ * @route   GET /api/sensors/history/:areaId
+ * @access  Private (Requires Bearer Token)
+ */
+GET {{baseUrl}}/sensors/history/1
+Authorization: Bearer {{authToken}}
+
+###
+
+/**
+ * @test    Get All Areas
+ * @desc    Retrieve the list of all monitored rooms and their current shade states.
+ * @route   GET /api/areas
+ * @access  Private (Requires Bearer Token)
+ */
+GET {{baseUrl}}/areas
+Authorization: Bearer {{authToken}}
