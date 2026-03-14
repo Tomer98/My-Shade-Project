@@ -3,6 +3,7 @@ import axios from 'axios';
 import SensorChart from './SensorChart';
 import SensorMap from './SensorMap';
 import { getShadeColor } from '../utils/getShadeColor';
+import { getAuthHeader } from '../utils/auth';
 import './RoomDashboard.css';
 
 // TODO: In production, move to .env file
@@ -10,13 +11,18 @@ const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * RoomDashboard Component
- * The main control panel for a specific room. Allows users to view sensor data, 
- * control shades manually/automatically, run weather simulations, and view history.
+ * Represents the detailed control panel for a specific area/room.
+ * Allows users to view real-time data, control shades manually/automatically, 
+ * run weather simulations, and view historical sensor data.
+ * * @param {Object} props.selectedArea - Data of the specific room being viewed.
+ * @param {Object} props.user - The currently authenticated user object.
+ * @param {Function} props.onBack - Callback to return to the main map view.
+ * @param {Function} props.onUpdate - Callback to refresh parent component state.
  */
 const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     // --- State Management ---
     const [sensors, setSensors] = useState([]);
-    const [shadePosition, setShadePosition] = useState(selectedArea.current_position || 0);
+    const [shadePosition, setShadePosition] = useState(selectedArea?.current_position || 0);
     
     // Edit Modes
     const [isSensorEditing, setIsSensorEditing] = useState(false);
@@ -43,21 +49,20 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // Refs
     const fileInputRef = useRef(null);
-    const roomName = selectedArea.name || selectedArea.room || 'Unknown Room';
+    const roomName = selectedArea?.name || selectedArea?.room || 'Unknown Room';
 
     // --- Side Effects ---
     
-    // 1. Fetch Latest Sensor Data (Real or Simulated)
+    // 1. Sync Display Data (Real or Simulated)
     useEffect(() => {
         if (!selectedArea) return;
 
         if (selectedArea.is_simulation) {
-            setDisplayTemp(selectedArea.sim_temp || 25);
-            setDisplayLight(selectedArea.sim_light || 5000);
-            setSimTemp(selectedArea.sim_temp || 25);
-            setSimLight(selectedArea.sim_light || 5000);
+            setDisplayTemp(selectedArea.sim_temp ?? 25);
+            setDisplayLight(selectedArea.sim_light ?? 5000);
+            setSimTemp(selectedArea.sim_temp ?? 25);
+            setSimLight(selectedArea.sim_light ?? 5000);
         } else {
-            // Display last recorded values if available
             if (selectedArea.last_temperature !== undefined) {
                 setDisplayTemp(selectedArea.last_temperature);
                 setDisplayLight(selectedArea.last_light_intensity);
@@ -65,7 +70,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     }, [selectedArea]);
 
-    // 2. Initialize Shade Position and Sensors
+    // 2. Initialize Shade Position and Sensors Layout
     useEffect(() => {
         if (!selectedArea) return;
         setShadePosition(selectedArea.current_position || 0);
@@ -85,19 +90,20 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         setSensors(Array.isArray(parsedSensors) ? parsedSensors : []);
     }, [selectedArea]);
 
-    // 3. Reset edit mode when toggling off
+    // 3. Cleanup Edit Modes
     useEffect(() => {
         if (!isSensorEditing) setSensorEditMode('none');
     }, [isSensorEditing]);
 
-    // 4. Fetch Sensor History when Graph is opened
+    // 4. Fetch Sensor History on Modal Open
     useEffect(() => {
         if (!showGraph || !selectedArea.id) return;
 
         const fetchHistory = async () => {
             setHistoryLoading(true);
             try {
-                const response = await axios.get(`${API_BASE_URL}/sensors/history/${selectedArea.id}`);
+                // 🛡️ שימוש בפונקציה המיובאת
+                const response = await axios.get(`${API_BASE_URL}/sensors/history/${selectedArea.id}`, getAuthHeader());
                 setSensorHistory(response.data);
             } catch (error) {
                 console.error("History fetch error:", error);
@@ -112,6 +118,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // --- Action Handlers ---
 
+    /**
+     * Send manual shade control command.
+     */
     const handleManualControl = async () => {
         setIsSendingCommand(true);
         try {
@@ -122,7 +131,8 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/state`, {
                 state: newState,
                 position: shadePosition
-            });
+            }, getAuthHeader());
+            
             if (onUpdate) onUpdate();
             alert(`Command Sent: ${newState} at ${shadePosition}%`);
         } catch (error) {
@@ -133,10 +143,13 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
+    /**
+     * Revert shade control back to automatic algorithm.
+     */
     const handleAutoControl = async () => {
         setIsSendingCommand(true);
         try {
-            await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/state`, { state: 'AUTO' });
+            await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/state`, { state: 'AUTO' }, getAuthHeader());
             if (onUpdate) onUpdate();
             alert("System reverted to AUTO mode.");
         } catch (error) {
@@ -147,11 +160,15 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
+    /**
+     * Save the updated physical layout of sensors on the map.
+     */
     const handleSaveLayout = async () => {
         try {
             await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/sensor-positions`, {
                 sensor_position: JSON.stringify(sensors)
-            });
+            }, getAuthHeader());
+            
             setSaveButtonText('Saved! ✓');
             setTimeout(() => {
                 setSensorEditMode('none');   
@@ -166,6 +183,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
+    /**
+     * Inject simulated weather/sensor data for testing AI decisions.
+     */
     const handleSimulationUpdate = async () => {
         try {
             await axios.post(`${API_BASE_URL}/sensors/update-sim`, {
@@ -174,7 +194,8 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 temp: simTemp,
                 light: simLight,
                 weather_condition: simCondition 
-            });
+            }, getAuthHeader());
+            
             alert(`Simulated data injected!`);
             if (onUpdate) onUpdate(); 
         } catch (error) {
@@ -183,15 +204,19 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
+    /**
+     * Stop simulation and revert to real-world weather data.
+     */
     const stopSimulation = async () => {
         try {
-            await axios.post(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
+            await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
                 is_active: false,
                 isActive: false,
                 temperature: 25,
                 light: 500,
                 weather_condition: 'Clear'
-            });
+            }, getAuthHeader());
+            
             alert(`Simulation Stopped! Back to Real Weather.`);
             if (onUpdate) onUpdate(); 
         } catch (error) {
@@ -200,6 +225,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
+    /**
+     * Handle room map image upload.
+     */
     const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -209,8 +237,12 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         formData.append('roomImage', file);
         
         try {
+            const authConfig = getAuthHeader();
             await axios.post(`${API_BASE_URL}/areas/${selectedArea.id}/image`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+                headers: { 
+                    'Content-Type': 'multipart/form-data',
+                    ...authConfig.headers
+                },
             });
             alert('Image updated!');
             if (onUpdate) onUpdate(); 
@@ -219,7 +251,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             alert('Failed to upload.');
         } finally {
             setIsUploading(false);
-            e.target.value = null; // Reset input field
+            e.target.value = null; 
         }
     };
 

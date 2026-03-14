@@ -1,7 +1,14 @@
+# ==========================================
+# 🐳 Docker Compose Configuration
+# @description Orchestrates the Smart Shade System microservices (Database & API).
+# @version 1.0 (Final Refactor)
+# ==========================================
 version: '3.8'
 
 services:
-  # שירות 1: מסד הנתונים MySQL
+  # ==========================================
+  # 🗄️ MySQL Database Service
+  # ==========================================
   mysqldb:
     image: mysql:8.0
     container_name: shade_mysql
@@ -10,18 +17,21 @@ services:
       MYSQL_ROOT_PASSWORD: password123
       MYSQL_DATABASE: shade_system_test
     ports:
-      - "3307:3306"
+      - "3307:3306" # Mapped to 3307 externally to avoid local conflicts
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./shade_system_test.sql:/docker-entrypoint-initdb.d/init.sql
+      # 🚨 התיקון הקריטי: נתיב מעודכן לקובץ הסכימה החדש שלנו!
+      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword123"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
 
-  # שירות 2: שרת ה-Backend (Node.js)
+  # ==========================================
+  # 🚀 Node.js Backend Service
+  # ==========================================
   server:
     build: ./server
     container_name: shade_server
@@ -34,14 +44,15 @@ services:
       - DB_USER=root
       - DB_PASSWORD=password123
       - DB_NAME=shade_system_test
-      - JWT_SECRET=mysupersecretkey
+      # שימוש חכם: מושך את הסוד מה-.env שלך, ואם אין, משתמש בגיבוי
+      - JWT_SECRET=${JWT_SECRET:-SmartShade_Project_2026_Tomer_Super_Secret_Key_!@#987}
       - CORS_ORIGINS=http://localhost:5173
     
-    # --- התיקון הגדול: סנכרון קבצים בזמן אמת ---
+    # --- Live Sync & Persistence ---
     volumes:
-      - ./server:/app             # <--- זה משקף את הקוד שלך לתוך הדוקר!
-      - /app/node_modules         # <--- זה שומר על הספריות הפנימיות של הדוקר
-      - ./server/uploads:/app/uploads
+      - ./server:/app                 # Live code sync (Hot Reloading)
+      - /app/node_modules             # Protect container's linux dependencies
+      - ./server/uploads:/app/uploads # Persist uploaded room maps
       
     depends_on:
       mysqldb:
@@ -49,3 +60,4 @@ services:
 
 volumes:
   mysql_data:
+    # Named volume for persistent database storage
