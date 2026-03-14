@@ -1,0 +1,49 @@
+/* SensorChart.css */
+.sensor-chart-container {
+    width: 100%;
+    height: 100%;
+}
+
+.chart-legend {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: #666;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* Tooltip Styles */
+.custom-tooltip {
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tooltip-time {
+    margin: 0;
+    font-weight: bold;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+.tooltip-data {
+    margin: 5px 0 0 0;
+}

@@ -1,80 +1,93 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import './SensorChart.css';
 
 /**
- * Helper function: Safely extracts the array of sensor data.
- * Handles both direct arrays and API response objects containing a 'data' array.
+ * Custom Dot: Determines color based on shade position (0=Green, 100=Red, else Orange)
  */
-const extractData = (data) => {
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object' && Array.isArray(data.data)) return data.data;
-    return [];
+const CustomizedDot = (props) => {
+    const { cx, cy, payload } = props;
+    let fill = '#ffa726'; // Intermediate
+    
+    if (payload.current_position === 0) fill = '#66bb6a'; // Open
+    else if (payload.current_position === 100) fill = '#ef5350'; // Closed
+
+    return (
+        <svg x={cx - 6} y={cy - 6} width={12} height={12} fill="none">
+            <circle cx="6" cy="6" r="5" fill={fill} stroke="#fff" strokeWidth="2" />
+        </svg>
+    );
 };
 
 /**
- * Helper function: Formats raw data for the Recharts component.
- * Reverses the array (oldest to newest), formats timestamps, and ensures numeric values.
+ * Custom Tooltip: Formats the hover information
  */
-const formatChartData = (rawData) => {
-    return [...rawData].reverse().map((item) => {
-        let timeLabel = "??:??";
-        const dateVal = item.recorded_at || item.timestamp || item.date;
-        
-        if (dateVal) {
-            const dateObj = new Date(dateVal);
-            if (!isNaN(dateObj.getTime())) {
-                // Extract hours and minutes
-                timeLabel = dateObj.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            }
-        }
+const CustomTooltip = ({ active, payload }) => {
+    if (!active || !payload || !payload.length) return null;
+    
+    const data = payload[0].payload;
+    const isClosed = data.current_position === 100;
+    const isOpen = data.current_position === 0;
 
-        // Ensure safe numeric conversion
-        const temp = item.temperature !== undefined ? Number(item.temperature) : 0;
-        const light = item.light_intensity !== undefined ? Number(item.light_intensity) : 0;
-
-        return {
-            ...item,
-            temperature: isNaN(temp) ? 0 : temp,
-            light_intensity: isNaN(light) ? 0 : light,
-            time: timeLabel,
-        };
-    });
+    return (
+        <div className="custom-tooltip">
+            <p className="tooltip-time">{new Date(data.recorded_at).toLocaleTimeString()}</p>
+            <p className="tooltip-data" style={{ color: '#ff7300' }}>
+                🌡️ Temp: <strong>{data.temperature}°C</strong>
+            </p>
+            <p className="tooltip-data" style={{ color: isClosed ? '#ef5350' : isOpen ? '#66bb6a' : '#ffa726' }}>
+                🪟 Shade: <strong>{isOpen ? 'Open' : isClosed ? 'Closed' : `${data.current_position}%`}</strong>
+            </p>
+        </div>
+    );
 };
 
 /**
  * SensorChart Component
- * Displays a historical line chart of temperature and light intensity using Recharts.
  */
-const SensorChart = ({ data }) => {
-    const chartDataRaw = extractData(data);
+const SensorChart = ({ data = [] }) => {
+    // Handle both array and {data: [...]} API response formats
+    const rawData = Array.isArray(data) ? data : (data?.data || []);
+    const chartData = [...rawData].reverse();
 
-    // Fallback if no data is present
-    if (!chartDataRaw || chartDataRaw.length === 0) {
-        return (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                No history data available yet.
-            </div>
-        );
-    }
-
-    const formattedData = formatChartData(chartDataRaw);
+    const formatTime = (isoString) => {
+        const date = new Date(isoString);
+        return isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     return (
-        // The inline width/height wrapper is standard practice for Recharts ResponsiveContainer
-        <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-                <LineChart
-                    data={formattedData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis yAxisId="left" label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft' }} />
-                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Light (%)', angle: 90, position: 'insideRight' }} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                    <Legend verticalAlign="top" height={36}/>
-                    
-                    <Line yAxisId="left" type="monotone" dataKey="temperature" stroke="#e74c3c" strokeWidth={3} activeDot={{ r: 8 }} name="Temperature" />
-                    <Line yAxisId="right" type="monotone" dataKey="light_intensity" stroke="#f1c40f" strokeWidth={3} name="Light Level" />
+        <div className="sensor-chart-container">
+            {/* Legend Section */}
+            <div className="chart-legend">
+                <div className="legend-item"><span className="legend-dot" style={{background: '#66bb6a'}}/> Open</div>
+                <div className="legend-item"><span className="legend-dot" style={{background: '#ef5350'}}/> Closed</div>
+                <div className="legend-item"><span className="legend-dot" style={{background: '#ffa726'}}/> Partial</div>
+            </div>
+            
+            <ResponsiveContainer width="100%" height="85%">
+                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                        dataKey="recorded_at" 
+                        tickFormatter={formatTime} 
+                        tick={{ fontSize: 11 }}
+                        stroke="#999"
+                    />
+                    <YAxis 
+                        domain={['dataMin - 2', 'dataMax + 2']} 
+                        tick={{ fontSize: 12 }}
+                        stroke="#999"
+                        unit="°"
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line 
+                        type="monotone" 
+                        dataKey="temperature" 
+                        stroke="#ff7300" 
+                        strokeWidth={3}
+                        dot={<CustomizedDot />} 
+                        activeDot={{ r: 8 }}
+                        animationDuration={500}
+                    />
                 </LineChart>
             </ResponsiveContainer>
         </div>
