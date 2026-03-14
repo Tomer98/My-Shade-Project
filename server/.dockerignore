@@ -1,0 +1,20 @@
+# 📦 Dependency Directories
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 🔐 Environment Variables (Security)
+.env
+.env.*
+
+# 🐳 Docker Configs (No need to copy them inside)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 🐙 Git
+.git
+.gitignore
+
+# 📂 Local Uploads (Assuming you use a volume for this, we don't want local junk inside the image)
+uploads/
