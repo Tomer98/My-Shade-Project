@@ -1,10 +1,45 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { getShadeColor } from '../utils/getShadeColor';
 import './CampusMap.css';
 
+// TODO: In production, move to .env file
 const API_BASE_URL = 'http://localhost:3001';
 
+/**
+ * Helper function: Cleans and parses a coordinate value into a number.
+ */
+const parseCoord = (val) => {
+    if (val === undefined || val === null) return 50; 
+    if (typeof val === 'number') return val;
+    return parseFloat(val.toString().replace('%', ''));
+};
+
+/**
+ * Helper function: Safely extracts and parses the top/left coordinates from an area object.
+ * Moved outside the component to prevent unnecessary memory reallocation during rapid renders (e.g., dragging).
+ */
+const getCoords = (area) => {
+    let raw = area.map_coordinates || area.map_position;
+    if (!raw) return { top: 50, left: 50 };
+    
+    if (typeof raw === 'object') return raw;
+    
+    try {
+        if (typeof raw === 'string') {
+            if (raw.startsWith('"')) raw = JSON.parse(raw);
+            if (typeof raw === 'string') raw = JSON.parse(raw); // Handle double-stringified JSON
+        }
+        return raw;
+    } catch (e) {
+        return { top: 50, left: 50 }; 
+    }
+};
+
+/**
+ * CampusMap Component
+ * Interactive map allowing users to view rooms and admins to add, move, and delete map pins.
+ */
 const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     const [isMapEditing, setIsMapEditing] = useState(false);
     const [editMode, setEditMode] = useState('none'); 
@@ -12,17 +47,17 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     const [tempPosition, setTempPosition] = useState({ top: 0, left: 0 });
     
     const mapWrapperRef = useRef(null);
-    
     const dragPositionRef = useRef({ top: 0, left: 0 }); 
     const dragStartOffset = useRef({ x: 0, y: 0 });
 
+    // Ensure edit mode resets when edit mode is toggled off
     useEffect(() => {
         if (!isMapEditing) setEditMode('none');
     }, [isMapEditing]);
 
-    // --- לוגיקת גרירה חדשה המבוססת על useEffect כדי למנוע Stale Closures ---
+    // --- Drag & Drop Logic ---
 
-    // שלב 1: מתחילים את הגרירה בלחיצת עכבר
+    // Step 1: Initialize drag on mouse down
     const handleMouseDown = (e, area) => {
         if (!isMapEditing || editMode !== 'move') return;
         e.preventDefault();
@@ -31,41 +66,43 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         const mapRect = mapWrapperRef.current.getBoundingClientRect();
         const currentCoords = getCoords(area);
 
-        // מיקום הפין הנוכחי בפיקסלים
+        // Calculate current pin position in pixels
         const pinX = (parseCoord(currentCoords.left) / 100) * mapRect.width;
         const pinY = (parseCoord(currentCoords.top) / 100) * mapRect.height;
 
-        // מיקום העכבר בפיקסלים (יחסית למפה)
+        // Calculate mouse position relative to the map
         const mouseX = e.clientX - mapRect.left;
         const mouseY = e.clientY - mapRect.top;
 
-        // שומרים את ההפרש כדי למנוע "קפיצה" של הפין למיקום הסמן
+        // Save offset to prevent the pin from snapping its center to the cursor instantly
         dragStartOffset.current = {
             x: mouseX - pinX,
             y: mouseY - pinY
         };
         
-        setTempPosition(currentCoords); // מונע הבהוב ראשוני
-        setDraggingId(area.id); // מפעיל את ה-useEffect
+        setTempPosition(currentCoords); 
+        setDraggingId(area.id); 
     };
 
-    // שלב 2: מנהלים את אירועי התזוזה והשחרור דרך useEffect
+    // Step 2: Handle dragging movement and drop via side-effects (useEffect) to prevent stale closures
     useEffect(() => {
-        if (draggingId === null) return; // יוצאים אם לא גוררים כלום
+        if (draggingId === null) return; 
 
         const handleMouseMove = (e) => {
-            const mapRect = mapWrapperRef.current.getBoundingClientRect();
+            const mapRect = mapWrapperRef.current?.getBoundingClientRect();
             if (!mapRect) return;
 
             const mouseX = e.clientX - mapRect.left;
             const mouseY = e.clientY - mapRect.top;
 
+            // Apply the offset saved during mouse down
             const newPinX = mouseX - dragStartOffset.current.x;
             const newPinY = mouseY - dragStartOffset.current.y;
 
             let newLeft = (newPinX / mapRect.width) * 100;
             let newTop = (newPinY / mapRect.height) * 100;
             
+            // Constrain pin within the map boundaries (0% to 100%)
             newTop = Math.max(0, Math.min(100, newTop));
             newLeft = Math.max(0, Math.min(100, newLeft));
 
@@ -85,17 +122,20 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 console.error("Failed to save coordinates:", error);
                 alert("Error saving position");
             }
-            setDraggingId(null); // מפסיק את הגרירה ומפעיל את ה-cleanup
+            setDraggingId(null); 
         };
 
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
 
+        // Cleanup event listeners
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [draggingId, onUpdateAreas]);
+
+    // --- Action Handlers ---
 
     const handleMapClick = async (e) => {
         if (editMode !== 'add') return;
@@ -109,7 +149,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 const formData = new FormData();
                 formData.append('room', roomName);
                 formData.append('description', 'New Room');
-                // שליחת אובייקט בתוך סטרינג זה בסדר ב-FormData כי זה טופס
                 formData.append('map_coordinates', JSON.stringify({ top, left }));
                 
                 await axios.post(`${API_BASE_URL}/api/areas`, formData, {
@@ -137,54 +176,31 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         }
     };
 
-    const handleSaveAndExit = () => setIsMapEditing(false);
-
-    // --- Parsing Function ---
-    const parseCoord = (val) => {
-        if (val === undefined || val === null) return 50; 
-        if (typeof val === 'number') return val;
-        return parseFloat(val.toString().replace('%', ''));
-    };
-
-    const getCoords = (area) => {
-        let raw = area.map_coordinates || area.map_position;
-        if (!raw) return { top: 50, left: 50 };
-        
-        if (typeof raw === 'object') return raw;
-        
-        try {
-            if (typeof raw === 'string') {
-                if (raw.startsWith('"')) raw = JSON.parse(raw);
-                if (typeof raw === 'string') raw = JSON.parse(raw);
-            }
-            return raw;
-        } catch (e) {
-            return { top: 50, left: 50 }; 
-        }
-    };
-
     return (
         <div className="map-scroll-wrapper">
             {user?.role === 'admin' && (
                 <>
-                    {/* 1. Main Control Button (Top-Left) */}
+                    {/* Map Controls */}
                     {!isMapEditing ? (
-                        <button className="map-control-btn" style={{background: 'white', color: '#333'}} onClick={() => setIsMapEditing(true)}>✏️ Edit Map</button>
+                        <button className="map-control-btn" onClick={() => setIsMapEditing(true)}>
+                            ✏️ Edit Map
+                        </button>
                     ) : (
-                        <div 
-                            className="floating-toolbar" 
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')} title="Add Room">➕</button>
-                            <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Room">✋</button>
-                            <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Room">🗑️</button>
+                        <div className="floating-toolbar" onClick={(e) => e.stopPropagation()}>
+                            <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')} title="Add Room">➕ Add</button>
+                            <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Room">✋ Move</button>
+                            <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Room">🗑️ Delete</button>
+                            
                             <div style={{ width: '100%', height: '1px', background: '#ddd', margin: '5px 0' }}></div>
-                            <button style={{background: '#2ecc71', color: 'white', borderColor: '#27ae60'}} onClick={() => setIsMapEditing(false)}>💾 Save</button>
-                            <button style={{background: '#95a5a6', color: 'white', borderColor: '#7f8c8d'}} onClick={() => { setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
+                            
+                            <button className="save-btn" style={{background: '#2ecc71', color: 'white'}} onClick={() => setIsMapEditing(false)}>💾 Save</button>
+                            <button className="cancel-btn" onClick={() => { setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
                         </div>
                     )}
                 </>
             )}
+            
+            {/* Map Area */}
             <div
                 ref={mapWrapperRef}
                 className="map-image-wrapper"
@@ -193,6 +209,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             >
                 <img src="/campus_map.png" alt="Campus Map" className="main-map-image" />
 
+                {/* Map Pins */}
                 {areas.map((area) => {
                     const coords = area.id === draggingId ? tempPosition : getCoords(area);
                     const isDeleting = isMapEditing && editMode === 'delete';
@@ -203,7 +220,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                             key={area.id}
                             className={`map-pin ${draggingId === area.id ? 'dragging' : ''}`}
                             style={{
-                                position: 'absolute',
                                 top: `${parseCoord(coords.top)}%`,
                                 left: `${parseCoord(coords.left)}%`,
                                 zIndex: draggingId === area.id ? 1002 : 1000,

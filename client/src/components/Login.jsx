@@ -2,6 +2,14 @@ import { useState } from 'react';
 import axios from 'axios';
 import './Login.css';
 
+// TODO: In production, move to .env file
+const API_BASE_URL = 'http://localhost:3001/api';
+
+/**
+ * Login Component
+ * Handles user authentication, capturing username and password, 
+ * and passing the authenticated user data (including token) back to the parent.
+ */
 const Login = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -9,26 +17,25 @@ const Login = ({ onLogin }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(''); // ניקוי שגיאות קודמות
+        setError(''); // Clear any previous errors
         
         try {
-            const res = await axios.post('http://localhost:3001/api/users/login', { username, password });
+            const res = await axios.post(`${API_BASE_URL}/users/login`, { username, password });
             
             if (res.data.success) {
-                // --- התיקון הקריטי כאן! ---
-                // אנחנו יוצרים אובייקט חדש שמכיל גם את פרטי המשתמש וגם את הטוקן
+                // Combine the user object with the authentication token received from the server
                 const userWithToken = {
                     ...res.data.user,
-                    token: res.data.token // <--- הנה המפתח החסר!
+                    token: res.data.token
                 };
 
-                // שולחים את הכל ביחד לשמירה ב-LocalStorage
+                // Pass the complete user object up to the parent component (App.jsx) for saving/routing
                 onLogin(userWithToken);
             } else {
                 setError('Invalid login credentials');
             }
         } catch (err) { 
-            // טיפול יפה יותר בשגיאה שמגיעה מהשרת (אם יש כזו)
+            // Gracefully handle error messages sent back by the server, with a fallback
             const msg = err.response?.data?.message || 'Server error, please try again later';
             setError(msg); 
         }
@@ -55,7 +62,8 @@ const Login = ({ onLogin }) => {
                     />
                     <button type="submit">Login</button>
                 </form>
-                {error && <div className="login-error" style={{color: 'red', marginTop: '10px'}}>{error}</div>}
+                {/* Error message display, styles are managed in Login.css */}
+                {error && <div className="login-error">{error}</div>}
                 <div className="login-footer">Smart Campus Control System</div>
             </div>
         </div>

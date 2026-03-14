@@ -1,0 +1,67 @@
+/* SmartDashboard.css */
+.smart-dashboard-container {
+    background: white;
+    height: 50px; /* גובה מינימלי קבוע */
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    font-size: 0.9rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.smart-dashboard-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.smart-icon {
+    font-size: 1.2rem;
+}
+
+.smart-title {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.smart-metrics {
+    display: flex;
+    gap: 20px;
+    color: #555;
+    align-items: center;
+}
+
+.smart-score-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* הרקע האפור של הציון */
+.score-bar-bg {
+    width: 30px;
+    height: 4px;
+    background: #eee;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+/* הפס שמתמלא - עם אנימציה חלקה! */
+.score-bar-fill {
+    height: 100%;
+    transition: width 0.5s ease-out, background-color 0.5s ease-out;
+}
+
+.smart-decision-badge {
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    min-width: 120px;
+    text-align: center;
+    transition: background-color 0.5s ease-out;
+    cursor: help; /* מראה למשתמש שאפשר לרחף על זה */
+}
