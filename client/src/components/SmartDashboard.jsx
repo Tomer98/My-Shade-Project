@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { socket } from '../socket'; // <--- התיקון: מייבאים את החיבור המשותף!
+import { getAuthHeader } from '../utils/auth';
+import { socket } from '../socket';
 import './SmartDashboard.css';
 
 // TODO: In production, move to .env file
@@ -25,7 +26,7 @@ const SmartDashboard = () => {
     // Fetch the *initial* state immediately when the page loads
     const fetchInitialData = async () => {
         try {
-            const res = await axios.get(`${API_BASE_URL}/sensors/latest`);
+            const res = await axios.get(`${API_BASE_URL}/sensors/latest`, getAuthHeader());
             if (res.data) setMetrics(res.data);
         } catch (err) { 
             console.warn("Stats fetch failed - system might be offline"); 
