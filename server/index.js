@@ -58,7 +58,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter); 
 
 // ==========================================
-// Standard Middleware
+// 🧰 Standard Middleware
 // ==========================================
 
 app.use(cors());
@@ -91,8 +91,34 @@ app.use('/api/sensors', sensorRoutes);
 app.use('/api/schedules', schedulerRoutes);
 app.use('/api/alerts', alertRoutes);
 
+
 // ==========================================
-// Server Initialization
+// 🚨 Fallback & Error Handling (התוספת החדשה!)
+// ==========================================
+
+// 404 Route Not Found Handler
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: `API Route not found: ${req.originalUrl}`
+    });
+});
+
+// Global Error Handler (Catches all unhandled errors in the app)
+app.use((err, req, res, next) => {
+    console.error('🔥 Server Error:', err.message);
+    
+    // Prevent sensitive stack traces from leaking to the client in production
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
+
+
+// ==========================================
+// 🚀 Server Initialization
 // ==========================================
 
 // WebSocket Connection Handling
