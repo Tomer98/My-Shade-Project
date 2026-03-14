@@ -103,7 +103,7 @@ const initScheduler = (io) => {
                     light: realWeather.light,
                     clouds: realWeather.clouds || 0,
                     score: globalDecision.score,
-                    decision: globalDecision.action === 'CLOSE' ? 'CLOSE' : 'AUTO',
+                    decision: globalDecision.actionType,
                     reason: globalDecision.reason
                 });
             }
