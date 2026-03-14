@@ -1,26 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getAuthHeader } from '../utils/auth';
 import './AlertsSystem.css';
 
 // TODO: In production, move to .env file
 const API_URL = 'http://localhost:3001/api';
-
-/**
- * Retrieves the authorization token from localStorage and formats it for Axios.
- * Kept outside the component to prevent recreation on every render.
- */
-const getAuthHeader = () => {
-    const savedUser = localStorage.getItem('shade_app_user');
-    if (!savedUser) return null;
-    
-    try {
-        const userData = JSON.parse(savedUser);
-        if (!userData || !userData.token) return null;
-        return { headers: { Authorization: `Bearer ${userData.token}` } };
-    } catch (e) {
-        return null;
-    }
-};
 
 /**
  * Visual helper for alert priority styling

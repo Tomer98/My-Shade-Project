@@ -1,23 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getAuthHeader } from '../utils/auth';
 import './UserManagement.css';
 
 // TODO: In production, move to .env file
 const API_BASE_URL = 'http://localhost:3001/api';
-
-/**
- * Safely retrieves the authorization header from localStorage.
- */
-const getAuthHeader = () => {
-    try {
-        const savedUser = localStorage.getItem('shade_app_user');
-        if (!savedUser) return null;
-        const token = JSON.parse(savedUser)?.token;
-        return token ? { headers: { Authorization: `Bearer ${token}` } } : null;
-    } catch (e) {
-        return null;
-    }
-};
 
 /**
  * Helper function: Returns the appropriate CSS class for a user role badge.
