@@ -6,226 +6,235 @@ import CampusMap from './components/CampusMap';
 import UserManagement from './components/UserManagement';
 import AlertsSystem from './components/AlertsSystem';
 import SmartDashboard from './components/SmartDashboard';
-import SchedulerPanel from './components/SchedulerPanel'; // <--- 1. הייבוא החדש
-import { socket } from './socket'; 
+import SchedulerPanel from './components/SchedulerPanel';
 import ActivityLog from './components/ActivityLog';
+import { getAuthHeader } from './utils/auth';
+import { socket } from './socket'; 
 import './App.css';
 
-// --- Constants and Settings ---
-const API_BASE_URL = 'http://localhost:3001'; 
+// --- Constants ---
+const API_BASE_URL = 'http://localhost:3001/api'; 
 
 function App() {
-  const [user, setUser] = useState(null); 
-  const [areas, setAreas] = useState([]);
-  const [selectedArea, setSelectedArea] = useState(null);
-  const [globalLogs, setGlobalLogs] = useState([]);
-  
-  // --- מצבי תצוגה ---
-  const [showUserManagement, setShowUserManagement] = useState(false); 
-  const [showAlerts, setShowAlerts] = useState(false); 
-  const [showSmartDash, setShowSmartDash] = useState(true); 
+    // --- State Management ---
+    const [user, setUser] = useState(null); 
+    const [areas, setAreas] = useState([]);
+    const [selectedArea, setSelectedArea] = useState(null);
+    const [globalLogs, setGlobalLogs] = useState([]);
+    
+    // View States
+    const [showUserManagement, setShowUserManagement] = useState(false); 
+    const [showAlerts, setShowAlerts] = useState(false); 
+    const [showSmartDash, setShowSmartDash] = useState(true); 
 
-  // --- API Calls ---
-  const loadAreas = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/api/areas`);
-      if (res.data.success) setAreas(res.data.data);
-      else if (Array.isArray(res.data)) setAreas(res.data); 
-    } catch (err) { console.error("Error loading areas:", err); }
-  };
-
-  const fetchGlobalLogs = async () => {
-      try {
-          const res = await axios.get(`${API_BASE_URL}/api/sensors/logs`);
-          if (res.data.success) setGlobalLogs(res.data.data);
-      } catch (err) { console.log("Logs endpoint might be different, skipping..."); }
-  };
-
-  // --- Login Persistence ---
-  useEffect(() => {
-      const savedUser = localStorage.getItem('shade_app_user');
-      if (savedUser) {
-          try {
-            setUser(JSON.parse(savedUser));
-          } catch (e) { console.error("Login parse error", e); }
-      }
-  }, []);
-
-  // --- Data Loading on Login ---
-  useEffect(() => {
-    if (user) {
-        loadAreas();
-        fetchGlobalLogs();
-    }
-  }, [user]);
-
-// --- 🔌 SOCKET.IO INTEGRATION ---
-  useEffect(() => {
-    socket.on("connect", () => {
-        console.log("🟢 WebSocket Connected! ID:", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-        console.log("🔴 WebSocket Disconnected");
-    });
-
-    socket.on("refresh_areas", () => {
-        if (user) loadAreas(); 
-    });
-
-    socket.on("new_log", (newLogEntry) => {
-        setGlobalLogs(prevLogs => [newLogEntry, ...prevLogs]);
-        if (user) loadAreas(); 
-    });
-
-    return () => {
-        socket.off("connect");
-        socket.off("disconnect");
-        socket.off("refresh_areas");
-        socket.off("new_log");
-    };
-  }, [user]);
-
-  // --- Sync Selected Area ---
-  useEffect(() => {
-    if (selectedArea && areas.length > 0) {
-        const updatedArea = areas.find(a => a.id === selectedArea.id);
-        if (updatedArea && JSON.stringify(selectedArea) !== JSON.stringify(updatedArea)) {
-             setSelectedArea(updatedArea);
+    // --- Data Fetching ---
+    const loadAreas = async () => {
+        const config = getAuthHeader();
+        if (!config) return;
+        try {
+            const res = await axios.get(`${API_BASE_URL}/areas`, config);
+            if (res.data.success) setAreas(res.data.data);
+            else if (Array.isArray(res.data)) setAreas(res.data); 
+        } catch (err) { 
+            console.error("Error loading areas:", err); 
         }
-    }
-  }, [areas, selectedArea]);
+    };
 
-  // --- User Functions ---
-  const handleLoginSuccess = (loggedInUser) => {
-      setUser(loggedInUser);
-      localStorage.setItem('shade_app_user', JSON.stringify(loggedInUser));
-  };
+    const fetchGlobalLogs = async () => {
+        const config = getAuthHeader();
+        if (!config) return;
+        try {
+            const res = await axios.get(`${API_BASE_URL}/sensors/logs`, config);
+            if (res.data.success) setGlobalLogs(res.data.data);
+        } catch (err) { 
+            console.warn("Logs endpoint check failed."); 
+        }
+    };
 
-  const handleLogout = () => { 
-      setUser(null); 
-      setSelectedArea(null); 
-      localStorage.removeItem('shade_app_user');
-  };
+    // --- Lifecycles & Sockets ---
+    
+    // 1. Login Persistence on Mount
+    useEffect(() => {
+        const savedUser = localStorage.getItem('shade_app_user');
+        if (savedUser) {
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) { console.error("Login parse error", e); }
+        }
+    }, []);
 
-  const goBackToMap = () => {
-    setSelectedArea(null);
-    setShowUserManagement(false);
-    setShowAlerts(false);
-  };
+    // 2. Fetch Initial Data after Login
+    useEffect(() => {
+        if (user) {
+            loadAreas();
+            fetchGlobalLogs();
+        }
+    }, [user]);
 
-  const handleGlobalControl = async (newState) => {
-      if (!window.confirm(`Change entire campus to ${newState}?`)) return;
-      try {
-          await axios.put(`${API_BASE_URL}/api/areas/global/state`, { state: newState });
-          loadAreas(); 
-      } catch (err) { console.error(err); }
-  };
-
-  // --- Rendering ---
-  if (!user) return <Login onLogin={handleLoginSuccess} />;
-
-  return (
-    <div className="app-container" style={{display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden'}}>
-      
-      {/* 1. Header */}
-      <header style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', height: '60px', backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 20 }}>
+    // 3. Socket.io Integration
+    useEffect(() => {
+        socket.on("connect", () => console.log("🟢 WebSocket Connected! ID:", socket.id));
+        socket.on("disconnect", () => console.log("🔴 WebSocket Disconnected"));
         
-        {/* צד שמאל: לוגו + כפתור האלגוריתם */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-             <div style={{ fontSize: '1.8rem' }}>☀️</div> 
-             <div>
-               <h1 style={{ margin: 0, fontSize: '1.2rem', color: '#2c3e50', fontWeight: '700' }}>Smart Shade</h1>
-             </div>
+        socket.on("refresh_areas", () => {
+            if (user) loadAreas(); 
+        });
 
-             {/* כפתור להדלקה/כיבוי של הסטריפ המדעי */}
-             <button 
-                onClick={() => setShowSmartDash(!showSmartDash)}
-                style={{
-                    background: showSmartDash ? '#e0e0e0' : 'transparent',
-                    border: '1px solid #ccc',
-                    borderRadius: '20px',
-                    padding: '4px 12px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    marginLeft: '15px'
-                }}
-             >
-                🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
-             </button>
-        </div>
+        socket.on("new_log", (newLogEntry) => {
+            setGlobalLogs(prevLogs => [newLogEntry, ...prevLogs]);
+        });
 
-        {/* צד ימין: כפתורי שליטה וניווט */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        return () => {
+            socket.off("connect");
+            socket.off("disconnect");
+            socket.off("refresh_areas");
+            socket.off("new_log");
+        };
+    }, [user]);
+
+    // 4. Sync Selected Area Data
+    useEffect(() => {
+        if (selectedArea && areas.length > 0) {
+            const updatedArea = areas.find(a => a.id === selectedArea.id);
+            // Shallow stringify check to prevent infinite re-renders while updating state
+            if (updatedArea && JSON.stringify(selectedArea) !== JSON.stringify(updatedArea)) {
+                 setSelectedArea(updatedArea);
+            }
+        }
+    }, [areas, selectedArea]);
+
+    // --- Action Handlers ---
+    
+    const handleLoginSuccess = (loggedInUser) => {
+        setUser(loggedInUser);
+        localStorage.setItem('shade_app_user', JSON.stringify(loggedInUser));
+    };
+
+    const handleLogout = () => { 
+        setUser(null); 
+        setSelectedArea(null); 
+        localStorage.removeItem('shade_app_user');
+    };
+
+    const goBackToMap = () => {
+        setSelectedArea(null);
+        setShowUserManagement(false);
+        setShowAlerts(false);
+    };
+
+    const handleGlobalControl = async (newState) => {
+        if (!window.confirm(`Change entire campus to ${newState}?`)) return;
+        const config = getAuthHeader();
+        if (!config) {
+            alert('Session expired. Please log in again.');
+            return;
+        }
+        try {
+            await axios.put(`${API_BASE_URL}/areas/global/state`, { state: newState }, config);
+            loadAreas(); 
+        } catch (err) { 
+            console.error(err); 
+            alert('Failed to execute global command.');
+        }
+    };
+
+    // --- Render ---
+    
+    if (!user) return <Login onLogin={handleLoginSuccess} />;
+
+    return (
+        <div className="app-container">
             
-            {/* כפתורי שליטה גלובליים */}
-            {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
-                <div style={{ display: 'flex', gap: '5px', marginRight: '10px', borderRight: '1px solid #eee', paddingRight: '10px' }}>
-                    <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⚡ Auto</button>
-                    <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⬆ Open All</button>
-                    <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle" style={{fontSize: '0.8rem'}}>⬇ Close All</button>
+            {/* 1. Header Navigation */}
+            <header className="app-header">
+                
+                {/* Left Side: Brand & Toggles */}
+                <div className="header-brand">
+                     <div style={{ fontSize: '1.8rem' }}>☀️</div> 
+                     <div><h1>Smart Shade</h1></div>
+                     <button 
+                        onClick={() => setShowSmartDash(!showSmartDash)}
+                        className={`smart-dash-toggle ${showSmartDash ? 'active' : ''}`}
+                     >
+                        🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
+                     </button>
+                </div>
+
+                {/* Right Side: Global Controls & Navigation */}
+                <div className="header-controls">
+                    
+                    {/* Admin/Maintenance Global Controls */}
+                    {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
+                        <div className="global-controls">
+                            <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">⚡ Auto</button>
+                            <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">⬆ Open All</button>
+                            <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">⬇ Close All</button>
+                        </div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    {!selectedArea && !showUserManagement && (
+                        <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
+                            {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
+                        </button>
+                    )}
+                    
+                    {user.role === 'admin' && !selectedArea && !showAlerts && (
+                        <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
+                            {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
+                        </button>
+                    )}
+                    
+                    <button onClick={handleLogout} className="header-btn-logout">Logout</button>
+                </div>
+            </header>
+
+            {/* 2. The Scientific Brain Ticker */}
+            {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
+                <div style={{ flexShrink: 0, zIndex: 10 }}>
+                    <SmartDashboard />
                 </div>
             )}
 
-            {!selectedArea && !showUserManagement && (
-                <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
-                    {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
-                </button>
-            )}
+            {/* 3. Main Content Area */}
+            <div className="main-content-wrapper">
+                
+                {/* Left Side: Dynamic Workspace */}
+                <div className="map-section-container">
+                    {showUserManagement && user.role === 'admin' ? (
+                        <div className="admin-panels-wrapper">
+                            <SchedulerPanel />
+                            <UserManagement />
+                        </div>
+                    ) : showAlerts ? ( 
+                        <AlertsSystem user={user} areas={areas} />
+                    ) : selectedArea ? (
+                        <RoomDashboard 
+                            selectedArea={selectedArea}
+                            user={user}
+                            onBack={goBackToMap}
+                            onUpdate={loadAreas}
+                        />
+                    ) : (
+                        <CampusMap 
+                            areas={areas} 
+                            onSelectArea={setSelectedArea} 
+                            user={user} 
+                            onUpdateAreas={loadAreas} 
+                        />
+                    )}
+                </div>
+
+                {/* Right Side: Activity Sidebar */}
+                {!selectedArea && !showUserManagement && !showAlerts && (
+                    <div className="sidebar-section-container">
+                        <ActivityLog logs={globalLogs} />
+                    </div>
+                )}
+            </div>
             
-            {user.role === 'admin' && !selectedArea && !showAlerts && (
-                <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
-                    {/* שיניתי את הטקסט כדי שיראה שמדובר בניהול כללי */}
-                    {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
-                </button>
-            )}
-            
-            <button onClick={handleLogout} className="header-btn-logout">Logout</button>
         </div>
-      </header>
-
-      {/* 2. THE SCIENTIFIC BRAIN */}
-      {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
-          <div style={{ flexShrink: 0, zIndex: 10 }}>
-              <SmartDashboard />
-          </div>
-      )}
-
-      {/* 3. Main Content */}
-      <div className="main-content-wrapper" style={{ flexGrow: 1, overflow: 'hidden', display: 'flex' }}>
-        
-        {/* Left Side */}
-        <div className="map-section-container" style={{ flex: 3, padding: '20px', overflowY: 'auto' }}>
-            {showUserManagement && user.role === 'admin' ? (
-              // --- כאן השילוב החדש! ---
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                  <SchedulerPanel /> {/* הלו"ז מופיע ראשון */}
-                  <UserManagement /> {/* ניהול המשתמשים מופיע מתחתיו */}
-              </div>
-            ) : showAlerts ? ( 
-              <AlertsSystem user={user} areas={areas} />
-            ) : selectedArea ? (
-                <RoomDashboard 
-                    selectedArea={selectedArea}
-                    user={user}
-                    onBack={goBackToMap}
-                    onUpdate={loadAreas}
-                />
-            ) : (
-                <CampusMap areas={areas} onSelectArea={setSelectedArea} user={user} onUpdateAreas={loadAreas} />
-            )}
-        </div>
-
-        {/* Right Side: Sidebar */}
-        {!selectedArea && !showUserManagement && !showAlerts && (
-            <ActivityLog logs={globalLogs} />
-        )}
-      </div>
-    </div>
-  );
+    );
 }
 
 export default App;
