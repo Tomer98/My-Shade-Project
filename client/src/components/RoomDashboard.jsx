@@ -47,23 +47,23 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // --- Side Effects ---
     
-    // 1. Fetch Latest Sensor Data (Real or Simulated)
-    useEffect(() => {
-        if (!selectedArea) return;
+// 1. Fetch Latest Sensor Data (Real or Simulated)
+useEffect(() => {
+    if (!selectedArea) return;
 
-        if (selectedArea.is_simulation) {
-            setDisplayTemp(selectedArea.sim_temp || 25);
-            setDisplayLight(selectedArea.sim_light || 5000);
-            setSimTemp(selectedArea.sim_temp || 25);
-            setSimLight(selectedArea.sim_light || 5000);
-        } else {
-            // Display last recorded values if available
-            if (selectedArea.last_temperature !== undefined) {
-                setDisplayTemp(selectedArea.last_temperature);
-                setDisplayLight(selectedArea.last_light_intensity);
-            }
+    if (selectedArea.is_simulation) {
+        setDisplayTemp(selectedArea.sim_temp ?? 25);
+        setDisplayLight(selectedArea.sim_light ?? 5000);
+        setSimTemp(selectedArea.sim_temp ?? 25);
+        setSimLight(selectedArea.sim_light ?? 5000);
+    } else {
+        // Display last recorded values if available
+        if (selectedArea.last_temperature !== undefined) {
+            setDisplayTemp(selectedArea.last_temperature);
+            setDisplayLight(selectedArea.last_light_intensity);
         }
-    }, [selectedArea]);
+    }
+}, [selectedArea]);
 
     // 2. Initialize Shade Position and Sensors
     useEffect(() => {

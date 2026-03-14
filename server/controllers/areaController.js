@@ -253,28 +253,48 @@ exports.deleteArea = async (req, res) => {
 /**
  * Update real-time simulation parameters for an area.
  */
+/**
+ * Update real-time simulation parameters for an area.
+ * Handles temperature and light injections from the Test AI panel.
+ */
 exports.updateAreaSimulation = async (req, res) => {
     try {
         const { id } = req.params;
-        let { is_active, isActive, temperature, light } = req.body;
 
-        // Support both naming conventions for flexibility
-        const activeState = is_active !== undefined ? is_active : isActive;
+        let { is_active, isActive, temperature, light, weather_condition } = req.body;
 
-        // Defaults if values are missing
-        const simTemp = temperature !== undefined ? temperature : 25;
-        const simLight = light !== undefined ? light : 500;
+        const activeState = is_active ?? isActive ?? false;
+        const simTemp = temperature ?? 25; 
+        const simLight = light ?? 500;
+        const condition = weather_condition || 'Clear';
 
+        // 1. Update the database
         await db.query(
-            `UPDATE areas SET is_simulation = ?, sim_temp = ?, sim_light = ? WHERE id = ?`,
-            [activeState, simTemp, simLight, id]
+            `UPDATE areas 
+             SET is_simulation = ?, 
+                 sim_temp = ?, 
+                 sim_light = ?, 
+                 weather_condition = ? 
+             WHERE id = ?`,
+            [activeState ? 1 : 0, simTemp, simLight, condition, id]
         );
 
-        if (req.io) req.io.emit('refresh_areas');
-        res.json({ success: true, message: 'Simulation parameters updated.' });
+        // 2. Refresh UI for all connected clients
+        if (req.io) {
+            req.io.emit('refresh_areas');
+        }
+
+        return res.json({ 
+            success: true, 
+            message: 'Simulation parameters updated successfully',
+            data: { simTemp, simLight, activeState } 
+        });
 
     } catch (error) {
-        console.error("Simulation Update Error:", error);
-        res.status(500).json({ success: false, message: 'Server Error during simulation update' });
+        console.error("❌ Simulation Update Error:", error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error during simulation update' 
+        });
     }
 };
