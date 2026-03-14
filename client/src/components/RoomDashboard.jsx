@@ -14,10 +14,6 @@ const API_BASE_URL = 'http://localhost:3001/api';
  * Represents the detailed control panel for a specific area/room.
  * Allows users to view real-time data, control shades manually/automatically, 
  * run weather simulations, and view historical sensor data.
- * * @param {Object} props.selectedArea - Data of the specific room being viewed.
- * @param {Object} props.user - The currently authenticated user object.
- * @param {Function} props.onBack - Callback to return to the main map view.
- * @param {Function} props.onUpdate - Callback to refresh parent component state.
  */
 const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     // --- State Management ---
@@ -102,7 +98,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         const fetchHistory = async () => {
             setHistoryLoading(true);
             try {
-                // 🛡️ שימוש בפונקציה המיובאת
                 const response = await axios.get(`${API_BASE_URL}/sensors/history/${selectedArea.id}`, getAuthHeader());
                 setSensorHistory(response.data);
             } catch (error) {
@@ -118,9 +113,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // --- Action Handlers ---
 
-    /**
-     * Send manual shade control command.
-     */
     const handleManualControl = async () => {
         setIsSendingCommand(true);
         try {
@@ -143,9 +135,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    /**
-     * Revert shade control back to automatic algorithm.
-     */
     const handleAutoControl = async () => {
         setIsSendingCommand(true);
         try {
@@ -160,9 +149,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    /**
-     * Save the updated physical layout of sensors on the map.
-     */
     const handleSaveLayout = async () => {
         try {
             await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/sensor-positions`, {
@@ -183,9 +169,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    /**
-     * Inject simulated weather/sensor data for testing AI decisions.
-     */
     const handleSimulationUpdate = async () => {
         try {
             await axios.post(`${API_BASE_URL}/sensors/update-sim`, {
@@ -204,9 +187,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    /**
-     * Stop simulation and revert to real-world weather data.
-     */
     const stopSimulation = async () => {
         try {
             await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
@@ -225,9 +205,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    /**
-     * Handle room map image upload.
-     */
     const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -241,7 +218,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             await axios.post(`${API_BASE_URL}/areas/${selectedArea.id}/image`, formData, {
                 headers: { 
                     'Content-Type': 'multipart/form-data',
-                    ...authConfig.headers
+                    ...authConfig?.headers 
                 },
             });
             alert('Image updated!');

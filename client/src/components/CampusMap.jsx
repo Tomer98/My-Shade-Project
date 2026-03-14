@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { getShadeColor } from '../utils/getShadeColor';
+import { getAuthHeader } from '../utils/auth';
 import './CampusMap.css';
 
 // TODO: In production, move to .env file
@@ -57,7 +58,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
 
     // --- Drag & Drop Logic ---
 
-    // Step 1: Initialize drag on mouse down
     const handleMouseDown = (e, area) => {
         if (!isMapEditing || editMode !== 'move') return;
         e.preventDefault();
@@ -66,15 +66,12 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         const mapRect = mapWrapperRef.current.getBoundingClientRect();
         const currentCoords = getCoords(area);
 
-        // Calculate current pin position in pixels
         const pinX = (parseCoord(currentCoords.left) / 100) * mapRect.width;
         const pinY = (parseCoord(currentCoords.top) / 100) * mapRect.height;
 
-        // Calculate mouse position relative to the map
         const mouseX = e.clientX - mapRect.left;
         const mouseY = e.clientY - mapRect.top;
 
-        // Save offset to prevent the pin from snapping its center to the cursor instantly
         dragStartOffset.current = {
             x: mouseX - pinX,
             y: mouseY - pinY
@@ -84,7 +81,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         setDraggingId(area.id); 
     };
 
-    // Step 2: Handle dragging movement and drop via side-effects (useEffect) to prevent stale closures
     useEffect(() => {
         if (draggingId === null) return; 
 
@@ -95,14 +91,12 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             const mouseX = e.clientX - mapRect.left;
             const mouseY = e.clientY - mapRect.top;
 
-            // Apply the offset saved during mouse down
             const newPinX = mouseX - dragStartOffset.current.x;
             const newPinY = mouseY - dragStartOffset.current.y;
 
             let newLeft = (newPinX / mapRect.width) * 100;
             let newTop = (newPinY / mapRect.height) * 100;
             
-            // Constrain pin within the map boundaries (0% to 100%)
             newTop = Math.max(0, Math.min(100, newTop));
             newLeft = Math.max(0, Math.min(100, newLeft));
 
@@ -114,9 +108,11 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         const handleMouseUp = async () => {
             try {
                 const finalPos = dragPositionRef.current;
+                
                 await axios.put(`${API_BASE_URL}/api/areas/${draggingId}/map-coordinates`, {
                     map_coordinates: JSON.stringify(finalPos)
-                });
+                }, getAuthHeader());
+                
                 onUpdateAreas();
             } catch (error) {
                 console.error("Failed to save coordinates:", error);
@@ -128,7 +124,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
 
-        // Cleanup event listeners
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
@@ -151,9 +146,14 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 formData.append('description', 'New Room');
                 formData.append('map_coordinates', JSON.stringify({ top, left }));
                 
+                const authConfig = getAuthHeader();
                 await axios.post(`${API_BASE_URL}/api/areas`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+                    headers: { 
+                        'Content-Type': 'multipart/form-data',
+                        ...authConfig?.headers 
+                    }
                 });
+                
                 onUpdateAreas(); 
             } catch (error) {
                 console.error("Failed to create room:", error);
@@ -167,7 +167,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         const name = areaToDelete.name || areaToDelete.room || 'this room';
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
-                await axios.delete(`${API_BASE_URL}/api/areas/${areaToDelete.id}`);
+                await axios.delete(`${API_BASE_URL}/api/areas/${areaToDelete.id}`, getAuthHeader());
                 onUpdateAreas();
             } catch (error) {
                 console.error("Failed to delete room:", error);
@@ -180,7 +180,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         <div className="map-scroll-wrapper">
             {user?.role === 'admin' && (
                 <>
-                    {/* Map Controls */}
                     {!isMapEditing ? (
                         <button className="map-control-btn" onClick={() => setIsMapEditing(true)}>
                             ✏️ Edit Map
@@ -200,7 +199,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 </>
             )}
             
-            {/* Map Area */}
             <div
                 ref={mapWrapperRef}
                 className="map-image-wrapper"
@@ -209,7 +207,6 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             >
                 <img src="/campus_map.png" alt="Campus Map" className="main-map-image" />
 
-                {/* Map Pins */}
                 {areas.map((area) => {
                     const coords = area.id === draggingId ? tempPosition : getCoords(area);
                     const isDeleting = isMapEditing && editMode === 'delete';
