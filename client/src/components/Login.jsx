@@ -20,7 +20,7 @@ const Login = ({ onLogin }) => {
         setError(''); // Clear any previous errors
         
         try {
-            const res = await axios.post(`${API_BASE_URL}/users/login`, { username, password });
+            const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
             
             if (res.data.success) {
                 // Combine the user object with the authentication token received from the server
