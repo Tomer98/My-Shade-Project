@@ -5,7 +5,7 @@
 const cron = require('node-cron');
 const db = require('../config/db');
 const weatherService = require('./weatherService');
-const config = require('../config/automation'); // <-- Connected the configuration file!
+const config = require('../config/automation'); 
 
 let ioInstance = null;
 const lastActionTypes = {}; // Cache to track the last action type per area
@@ -50,7 +50,7 @@ const calculateShadeAction = (temp, light, condition, isSimulated) => {
     // --- 2. Standard Calculation (Using Automation Config Weights) ---
     
     // Normalize Temperature: (Current - Min) / (Max - Min) -> values between 0.0 and 1.0
-    const tempRange = config.LIMITS.MAX_TEMP - config.LIMITS.MIN_TEMP; // e.g., 35 - 20 = 15
+    const tempRange = config.LIMITS.MAX_TEMP - config.LIMITS.MIN_TEMP; 
     const normTemp = Math.min(Math.max((temp - config.LIMITS.MIN_TEMP) / tempRange, 0), 1); 
     
     // Normalize Light (Assuming Lux up to 10,000 as max threshold)
@@ -82,17 +82,33 @@ const initScheduler = (io) => {
     // Runs every 5 seconds for high responsiveness
     cron.schedule('*/5 * * * * *', async () => {
         try {
-            // 1. Fetch real-time weather
+            // 1. Fetch real-time weather & Calculate Global Algorithm Score
             const realWeather = await weatherService.getCurrentWeather(); 
+            const globalCondition = realWeather.condition || 'Clear';
             
-            // Log global weather to DB for the Frontend Top Bar
+            // Calculate what the algorithm "thinks" globally right now
+            const globalDecision = calculateShadeAction(realWeather.temp, realWeather.light, globalCondition, false);
+
+            // Log global weather to DB WITH the actual algorithm score and reasoning
             await db.query(
                 `INSERT INTO weather_logs (temp, light_level, weather_condition, clouds, score, decision, reason, recorded_at)
-                 VALUES (?, ?, ?, ?, 0, 'MONITORING', 'Live Update', NOW())`,
-                [realWeather.temp, realWeather.light, realWeather.condition || 'Clear', realWeather.clouds || 0]
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [realWeather.temp, realWeather.light, globalCondition, realWeather.clouds || 0, globalDecision.score, globalDecision.actionType, globalDecision.reason]
             );
 
-            // 2. Fetch all areas
+            // 📢 2. EMIT REAL-TIME UPDATE TO REACT DASHBOARD
+            if (ioInstance) {
+                ioInstance.emit('smartDataUpdate', {
+                    temp: realWeather.temp,
+                    light: realWeather.light,
+                    clouds: realWeather.clouds || 0,
+                    score: globalDecision.score,
+                    decision: globalDecision.action === 'CLOSE' ? 'CLOSE' : 'AUTO',
+                    reason: globalDecision.reason
+                });
+            }
+
+            // 3. Fetch all areas and update individual rooms
             const [areas] = await db.query('SELECT * FROM areas');
 
             for (const area of areas) {
@@ -114,13 +130,13 @@ const initScheduler = (io) => {
                     isSimulated = false;
                 }
 
-                // 3. Calculate Decision
+                // 4. Calculate Decision
                 const decision = calculateShadeAction(currentTemp, currentLight, currentCondition, isSimulated);
 
-                // 4. Convert score (0.0 - 1.0) to percentage (0-100)
+                // 5. Convert score (0.0 - 1.0) to percentage (0-100)
                 let targetPosition = Math.round(decision.score * 100);
 
-                // 5. Apply Hysteresis (Prevent twitching)
+                // 6. Apply Hysteresis (Prevent twitching)
                 const diff = Math.abs(targetPosition - area.current_position);
                 
                 let newState = 'AUTO';
@@ -137,20 +153,20 @@ const initScheduler = (io) => {
                 lastActionTypes[area.id] = decision.actionType;
                 console.log(`🚀 ACTION: Moving ${area.room} to ${targetPosition}% (Reason: ${decision.reason})`);
 
-                // 6. Update Database State
+                // 7. Update Database State
                 await db.query(
                     'UPDATE areas SET current_position = ?, shade_state = ?, last_temperature = ?, last_light_intensity = ? WHERE id = ?',
                     [targetPosition, newState, currentTemp, currentLight, area.id]
                 );
 
-                // 7. Insert Log Entry
+                // 8. Insert Log Entry
                 const [logResult] = await db.query(
                     `INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type)
                      VALUES (?, ?, ?, ?, ?)`, 
                     [area.id, currentTemp, currentLight, targetPosition, decision.actionType] 
                 );
 
-                // 8. Emit Real-time Updates to Client
+                // 9. Emit Real-time Updates to Client (Rooms)
                 if (ioInstance) {
                     ioInstance.emit('refresh_areas');
                     ioInstance.emit('new_log', {
