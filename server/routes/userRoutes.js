@@ -1,25 +1,34 @@
+/**
+ * User Routes
+ * Handles administrative management of users (create, read, delete).
+ * Base Route: /api/users
+ */
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const authController = require('../controllers/authController'); // מייבאים גם את האימות
 const { verifyToken, checkRole } = require('../middleware/auth');
 
-/**
- * Public Routes
- */
-// הנתיב הזה הולך ל-authController
-router.post('/login', authController.login);
+router.use(verifyToken, checkRole(['admin']));
 
 /**
- * Protected Routes (Staff/Admin)
+ * @route   GET /
+ * @desc    Get a list of all users (excluding passwords)
+ * @access  Private (Admin only)
  */
-// שליפת כל המשתמשים - רק למנהלים
-router.get('/', verifyToken, checkRole(['admin']), userController.getAllUsers);
+router.get('/', userController.getAllUsers);
 
-// יצירת משתמש חדש - רק למנהלים
-router.post('/register', verifyToken, checkRole(['admin']), userController.createUser);
+/**
+ * @route   POST /register
+ * @desc    Create a new user account (Staff/Admin)
+ * @access  Private (Admin only)
+ */
+router.post('/register', userController.createUser);
 
-// מחיקת משתמש - רק למנהלים
-router.delete('/:id', verifyToken, checkRole(['admin']), userController.deleteUser);
+/**
+ * @route   DELETE /:id
+ * @desc    Delete a user from the system
+ * @access  Private (Admin only)
+ */
+router.delete('/:id', userController.deleteUser);
 
 module.exports = router;
