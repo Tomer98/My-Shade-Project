@@ -1,18 +1,13 @@
-/**
- * @file .gitignore
- * @description Specifies intentionally untracked files that Git should ignore.
- * Groups include dependencies, environment secrets, build outputs, and OS junk.
- */
+# .gitignore
+# Specifies intentionally untracked files that Git should ignore.
 
-/** * @section Dependencies
- * @desc Ignore all node_modules folders (local and nested).
- */
+# Dependencies
+# Ignore all node_modules folders (local and nested).
 **/node_modules/
 node_modules/
 
-/** * @section Security & Environment
- * @desc Prevent sensitive keys, passwords, and local configs from leaking to the repository.
- */
+# Security & Environment
+# Prevent sensitive keys, passwords, and local configs from leaking.
 .env
 .env.local
 .env.*.local
@@ -20,30 +15,26 @@ node_modules/
 .env.test.local
 .env.production.local
 
-/** * @section Uploads & Assets
- * @desc Ignore dynamic user uploads but keep the directory structure using .gitkeep.
- */
+# Uploads & Assets
+# Ignore dynamic user uploads but keep the directory structure.
 server/uploads/*
 !server/uploads/.gitkeep
 
-/** * @section Build & Distribution
- * @desc Ignore compiled code and production bundles.
- */
+# Build & Distribution
+# Ignore compiled code and production bundles.
 dist/
 build/
 client/dist/
 
-/** * @section Logs & Debugging
- * @desc Ignore error logs and runtime debug information.
- */
+# Logs & Debugging
+# Ignore error logs and runtime debug information.
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-/** * @section OS & IDE Junk
- * @desc Ignore system-specific files and local editor configurations.
- */
+# OS & IDE Junk
+# Ignore system-specific files and local editor configurations.
 .DS_Store
 .vscode/
 .idea/
