@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { socket } from '../socket'; // <--- התיקון: מייבאים את החיבור המשותף!
 import './SmartDashboard.css';
 
 // TODO: In production, move to .env file
@@ -8,7 +9,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
 /**
  * SmartDashboard Component
  * A real-time ticker that displays the latest AI algorithm metrics 
- * and its current decision (OPEN/CLOSE) based on live sensor data.
+ * listening via shared WebSockets for instant, zero-lag updates.
  */
 const SmartDashboard = () => {
     // Default state prevents undefined errors before the first fetch
@@ -21,26 +22,34 @@ const SmartDashboard = () => {
         reason: 'Loading...' 
     });
 
-    const fetchSmartData = async () => {
+    // Fetch the *initial* state immediately when the page loads
+    const fetchInitialData = async () => {
         try {
             const res = await axios.get(`${API_BASE_URL}/sensors/latest`);
             if (res.data) setMetrics(res.data);
         } catch (err) { 
-            // Changed to warn so it doesn't spam the error console as aggressively every 2 seconds if offline
             console.warn("Stats fetch failed - system might be offline"); 
         }
     };
 
-    // Polling mechanism: fetch data every 2 seconds
+    // --- The Magic: Shared WebSocket Listener ---
     useEffect(() => {
-        fetchSmartData();
-        const interval = setInterval(fetchSmartData, 2000); 
-        return () => clearInterval(interval);
+        // 1. Get current status immediately
+        fetchInitialData();
+
+        // 2. Listen for the server "shouting" new data on the shared socket
+        socket.on('smartDataUpdate', (newData) => {
+            setMetrics(newData);
+        });
+
+        // 3. Cleanup: Stop listening when leaving the page (Crucial!)
+        return () => {
+            socket.off('smartDataUpdate');
+        };
     }, []);
 
     // Dynamic styling variables
     const decisionColor = metrics.decision === 'CLOSE' ? '#c0392b' : '#27ae60';
-    // Ensure score is a number to prevent NaN errors in the UI
     const scoreValue = metrics.score || 0; 
 
     return (
@@ -61,7 +70,6 @@ const SmartDashboard = () => {
                 <div className="smart-score-container">
                     <span>📊 Score: <b>{scoreValue.toFixed(2)}</b></span>
                     <div className="score-bar-bg">
-                        {/* Inline styles kept here only for purely dynamic values (width & color) */}
                         <div 
                             className="score-bar-fill" 
                             style={{ 
@@ -77,7 +85,7 @@ const SmartDashboard = () => {
             <div 
                 className="smart-decision-badge" 
                 style={{ backgroundColor: decisionColor }}
-                title={metrics.reason} /* Allows user to hover and read the full, uncut reason */
+                title={metrics.reason} 
             >
                 {metrics.decision}: {metrics.reason.split(':')[0]}
             </div>
