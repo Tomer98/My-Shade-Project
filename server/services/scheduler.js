@@ -5,72 +5,11 @@
 const cron = require('node-cron');
 const db = require('../config/db');
 const weatherService = require('./weatherService');
-const config = require('../config/automation'); 
+const config = require('../config/automation');
+const { calculateShadeAction } = require('./decisionEngine'); 
 
 let ioInstance = null;
 const lastActionTypes = {}; // Cache to track the last action type per area
-
-// ==========================================
-// 🧠 Logic Brain (Calculate Score & Action)
-// ==========================================
-const calculateShadeAction = (temp, light, condition, isSimulated) => {
-    
-    // --- 1. Extreme Weather Checks ---
-
-    // 🌧️ Storm / Rain
-    if (['Storm', 'Rain', 'Heavy Rain'].includes(condition)) {
-        return { 
-            action: 'CLOSE', 
-            score: 1.0, 
-            reason: '🌧️ Rain Protection', 
-            actionType: 'STORM' 
-        };
-    }
-
-    // 🔥 Extreme Heat (Using config limit)
-    if (temp >= config.LIMITS.MAX_TEMP) {
-        return { 
-            action: 'CLOSE', 
-            score: 1.0, 
-            reason: `🔥🔥 Extreme Heat (${temp}°C)`, 
-            actionType: 'EXTREME_HEAT' 
-        };
-    }
-
-    // ❄️ Extreme Cold
-    if (temp <= 10) { 
-        return { 
-            action: 'CLOSE', 
-            score: 1.0, 
-            reason: `❄️ Extreme Cold (${temp}°C)`, 
-            actionType: 'EXTREME_COLD' 
-        };
-    }
-
-    // --- 2. Standard Calculation (Using Automation Config Weights) ---
-    
-    // Normalize Temperature: (Current - Min) / (Max - Min) -> values between 0.0 and 1.0
-    const tempRange = config.LIMITS.MAX_TEMP - config.LIMITS.MIN_TEMP; 
-    const normTemp = Math.min(Math.max((temp - config.LIMITS.MIN_TEMP) / tempRange, 0), 1); 
-    
-    // Normalize Light (Assuming Lux up to 10,000 as max threshold)
-    const normLight = Math.min(Math.max(light / 10000, 0), 1);
-    
-    // Apply Weights from config
-    const score = (config.WEIGHTS.TEMP * normTemp) + (config.WEIGHTS.LIGHT * normLight);
-    
-    // Determine the baseline action type
-    let actionType = 'AUTO'; 
-    if (score >= 0.95) actionType = 'CLOSED'; 
-    else if (score <= 0.05) actionType = 'OPENED'; 
-
-    return { 
-        action: 'PARTIAL', 
-        score, 
-        reason: `Balanced (Score: ${score.toFixed(2)})`,
-        actionType: actionType 
-    };
-};
 
 // ==========================================
 // ⏰ Initialize Smart Scheduler
