@@ -1,38 +1,60 @@
+/**
+ * Authentication Controller
+ * Handles user login and generates JWT tokens for secure access.
+ */
 const db = require('../config/db');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
+/**
+ * Login User
+ * Validates credentials against the database and returns a signed JWT token.
+ */
 exports.login = async (req, res) => {
     const { username, password } = req.body;
 
-    // כאן אפשר להוסיף הצפנה עם bcrypt בהמשך.
-    // כרגע נבדוק מול בסיס הנתונים בצורה ישירה או נשתמש במשתמשי דמו אם אין טבלה.
-    
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Please provide username and password' });
+    }
+
     try {
-        // בדיקה מול SQL
+        // 1. Check if user exists in database
         const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
         
-        if (users.length > 0) {
-            const user = users[0];
-            // בדיקת סיסמה (פשוטה כרגע)
-            if (password === user.password) {
-                // מחיקת הסיסמה מהתשובה שחוזרת ללקוח
-                const { password, ...userWithoutPassword } = user;
-                return res.json({ success: true, user: userWithoutPassword });
-            }
+        if (users.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid username or password' });
         }
 
-        // --- גיבוי: משתמשים "קשיחים" (Hardcoded) למקרה שאין עדיין טבלת משתמשים ---
-        if (username === 'alice' && password === 'admin123') {
-            return res.json({ success: true, user: { username: 'alice', role: 'admin' } });
-        }
-        if (username === 'bob' && password === 'maint123') {
-            return res.json({ success: true, user: { username: 'bob', role: 'maintenance' } });
-        }
-        // -------------------------------------------------------------------------
+        const user = users[0];
 
-        return res.json({ success: false, message: 'Invalid credentials' });
+        // 2. Validate Password
+        // Note: In production, use bcrypt.compare(password, user.password)
+        if (password !== user.password) {
+            return res.status(401).json({ success: false, message: 'Invalid username or password' });
+        }
+
+        // 3. Generate JWT Token
+        // The token contains the user ID and role for the middleware to check
+        const secretKey = process.env.JWT_SECRET || "my_secret_key";
+        const token = jwt.sign(
+            { id: user.id, username: user.username, role: user.role },
+            secretKey,
+            { expiresIn: '24h' } // Token valid for 24 hours
+        );
+
+        // 4. Prepare User object for the frontend (excluding password)
+        const { password: _, ...userWithoutPassword } = user;
+
+        console.log(`🔑 User authenticated: ${username} (${user.role})`);
+
+        return res.json({ 
+            success: true, 
+            token, 
+            user: userWithoutPassword 
+        });
 
     } catch (error) {
-        console.error("Login Error:", error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error("❌ Login Error:", error);
+        return res.status(500).json({ success: false, message: 'Internal server error during login' });
     }
 };
