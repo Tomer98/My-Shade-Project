@@ -1,27 +1,35 @@
 {
-  "name": "server",
+  "name": "smart-shade-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend server for the Smart Shade project",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "iot",
+    "smart-home",
+    "automation"
+  ],
+  "author": "Tomer",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "mysql2": "^3.16.0",
     "node-cron": "^4.2.1",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
