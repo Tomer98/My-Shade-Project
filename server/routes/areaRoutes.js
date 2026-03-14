@@ -23,9 +23,6 @@ router.put('/:id/sensor-positions', areaController.updateSensorPositions);
 // עדכון סטטוס וילון ספציפי
 router.put('/:id/state', areaController.updateAreaState);
 
-// עדכון גלובלי (תיקון: הפרונטנד שולח ל-/global/state ולא ל-/global-state)
-router.put('/global/state', areaController.updateGlobalState);
-
 // מחיקת חדר
 router.delete('/:id', areaController.deleteArea);
 
