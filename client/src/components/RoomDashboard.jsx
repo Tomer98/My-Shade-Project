@@ -185,7 +185,7 @@ useEffect(() => {
 
     const stopSimulation = async () => {
         try {
-            await axios.post(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
+            await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
                 is_active: false,
                 isActive: false,
                 temperature: 25,
