@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Login from './components/Login';
+import { NotificationProvider } from './context/NotificationContext';
 import RoomDashboard from './components/RoomDashboard';
 import CampusMap from './components/CampusMap';
 import UserManagement from './components/UserManagement';
@@ -96,7 +97,6 @@ function App() {
     useEffect(() => {
         if (selectedArea && areas.length > 0) {
             const updatedArea = areas.find(a => a.id === selectedArea.id);
-            // Shallow stringify check to prevent infinite re-renders while updating state
             if (updatedArea && JSON.stringify(selectedArea) !== JSON.stringify(updatedArea)) {
                  setSelectedArea(updatedArea);
             }
@@ -114,6 +114,7 @@ function App() {
         setUser(null); 
         setSelectedArea(null); 
         localStorage.removeItem('shade_app_user');
+        localStorage.removeItem('token');
     };
 
     const goBackToMap = () => {
@@ -125,16 +126,13 @@ function App() {
     const handleGlobalControl = async (newState) => {
         if (!window.confirm(`Change entire campus to ${newState}?`)) return;
         const config = getAuthHeader();
-        if (!config) {
-            alert('Session expired. Please log in again.');
-            return;
-        }
+        if (!config) return;
+
         try {
             await axios.put(`${API_BASE_URL}/areas/global/state`, { state: newState }, config);
             loadAreas(); 
         } catch (err) { 
             console.error(err); 
-            alert('Failed to execute global command.');
         }
     };
 
@@ -143,97 +141,95 @@ function App() {
     if (!user) return <Login onLogin={handleLoginSuccess} />;
 
     return (
-        <div className="app-container">
-            
-            {/* 1. Header Navigation */}
-            <header className="app-header">
+        <NotificationProvider>
+            <div className="app-container">
                 
-                {/* Left Side: Brand & Toggles */}
-                <div className="header-brand">
-                     <div style={{ fontSize: '1.8rem' }}>☀️</div> 
-                     <div><h1>Smart Shade</h1></div>
-                     <button 
-                        onClick={() => setShowSmartDash(!showSmartDash)}
-                        className={`smart-dash-toggle ${showSmartDash ? 'active' : ''}`}
-                     >
-                        🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
-                     </button>
-                </div>
-
-                {/* Right Side: Global Controls & Navigation */}
-                <div className="header-controls">
+                {/* 1. Header Navigation */}
+                <header className="app-header">
                     
-                    {/* Admin/Maintenance Global Controls */}
-                    {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
-                        <div className="global-controls">
-                            <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">⚡ Auto</button>
-                            <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">⬆ Open All</button>
-                            <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">⬇ Close All</button>
-                        </div>
-                    )}
+                    {/* Left Side: Brand & Toggles */}
+                    <div className="header-brand">
+                         <div style={{ fontSize: '1.8rem' }}>☀️</div> 
+                         <div><h1>Smart Shade</h1></div>
+                         <button 
+                            onClick={() => setShowSmartDash(!showSmartDash)}
+                            className={`smart-dash-toggle ${showSmartDash ? 'active' : ''}`}
+                         >
+                            🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
+                         </button>
+                    </div>
 
-                    {/* Navigation Buttons */}
-                    {!selectedArea && !showUserManagement && (
-                        <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
-                            {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
-                        </button>
-                    )}
-                    
-                    {user.role === 'admin' && !selectedArea && !showAlerts && (
-                        <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
-                            {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
-                        </button>
-                    )}
-                    
-                    <button onClick={handleLogout} className="header-btn-logout">Logout</button>
-                </div>
-            </header>
+                    {/* Right Side: Global Controls & Navigation */}
+                    <div className="header-controls">
+                        
+                        {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
+                            <div className="global-controls">
+                                <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">⚡ Auto</button>
+                                <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">⬆ Open All</button>
+                                <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">⬇ Close All</button>
+                            </div>
+                        )}
 
-            {/* 2. The Scientific Brain Ticker */}
-            {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
-                <div style={{ flexShrink: 0, zIndex: 10 }}>
-                    <SmartDashboard />
-                </div>
-            )}
+                        {!selectedArea && !showUserManagement && (
+                            <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
+                                {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
+                            </button>
+                        )}
+                        
+                        {user.role === 'admin' && !selectedArea && !showAlerts && (
+                            <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
+                                {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
+                            </button>
+                        )}
+                        
+                        <button onClick={handleLogout} className="header-btn-logout">Logout</button>
+                    </div>
+                </header>
 
-            {/* 3. Main Content Area */}
-            <div className="main-content-wrapper">
-                
-                {/* Left Side: Dynamic Workspace */}
-                <div className="map-section-container">
-                    {showUserManagement && user.role === 'admin' ? (
-                        <div className="admin-panels-wrapper">
-                            <SchedulerPanel />
-                            <UserManagement />
-                        </div>
-                    ) : showAlerts ? ( 
-                        <AlertsSystem user={user} areas={areas} />
-                    ) : selectedArea ? (
-                        <RoomDashboard 
-                            selectedArea={selectedArea}
-                            user={user}
-                            onBack={goBackToMap}
-                            onUpdate={loadAreas}
-                        />
-                    ) : (
-                        <CampusMap 
-                            areas={areas} 
-                            onSelectArea={setSelectedArea} 
-                            user={user} 
-                            onUpdateAreas={loadAreas} 
-                        />
-                    )}
-                </div>
-
-                {/* Right Side: Activity Sidebar */}
-                {!selectedArea && !showUserManagement && !showAlerts && (
-                    <div className="sidebar-section-container">
-                        <ActivityLog logs={globalLogs} />
+                {/* 2. The Scientific Brain Ticker */}
+                {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
+                    <div style={{ flexShrink: 0, zIndex: 10 }}>
+                        <SmartDashboard />
                     </div>
                 )}
+
+                {/* 3. Main Content Area */}
+                <div className="main-content-wrapper">
+                    
+                    <div className="map-section-container">
+                        {showUserManagement && user.role === 'admin' ? (
+                            <div className="admin-panels-wrapper">
+                                <SchedulerPanel />
+                                <UserManagement />
+                            </div>
+                        ) : showAlerts ? ( 
+                            <AlertsSystem user={user} areas={areas} />
+                        ) : selectedArea ? (
+                            <RoomDashboard 
+                                selectedArea={selectedArea}
+                                user={user}
+                                onBack={goBackToMap}
+                                onUpdate={loadAreas}
+                            />
+                        ) : (
+                            <CampusMap 
+                                areas={areas} 
+                                onSelectArea={setSelectedArea} 
+                                user={user} 
+                                onUpdateAreas={loadAreas} 
+                            />
+                        )
+                        }
+                    </div>
+
+                    {!selectedArea && !showUserManagement && !showAlerts && (
+                        <div className="sidebar-section-container">
+                            <ActivityLog logs={globalLogs} />
+                        </div>
+                    )}
+                </div>
             </div>
-            
-        </div>
+        </NotificationProvider>
     );
 }
 

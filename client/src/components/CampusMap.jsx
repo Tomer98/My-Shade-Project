@@ -2,13 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
+import { useNotification } from '../context/NotificationContext';
 import './CampusMap.css';
 
-// TODO: In production, move to .env file
 const API_BASE_URL = 'http://localhost:3001';
 
 /**
- * Helper function: Cleans and parses a coordinate value into a number.
+ * Parses a coordinate value (string or number) into a clean percentage number.
+ * * @param {string|number} val - The coordinate value to parse.
+ * @returns {number} The parsed percentage value.
  */
 const parseCoord = (val) => {
     if (val === undefined || val === null) return 50; 
@@ -17,8 +19,10 @@ const parseCoord = (val) => {
 };
 
 /**
- * Helper function: Safely extracts and parses the top/left coordinates from an area object.
- * Moved outside the component to prevent unnecessary memory reallocation during rapid renders (e.g., dragging).
+ * Extracts and parses top/left coordinates from an area object.
+ * Handles potential double-stringified JSON from the database.
+ * * @param {Object} area - The area object containing coordinate data.
+ * @returns {Object} An object with { top, left } properties.
  */
 const getCoords = (area) => {
     let raw = area.map_coordinates || area.map_position;
@@ -29,7 +33,7 @@ const getCoords = (area) => {
     try {
         if (typeof raw === 'string') {
             if (raw.startsWith('"')) raw = JSON.parse(raw);
-            if (typeof raw === 'string') raw = JSON.parse(raw); // Handle double-stringified JSON
+            if (typeof raw === 'string') raw = JSON.parse(raw); 
         }
         return raw;
     } catch (e) {
@@ -39,9 +43,18 @@ const getCoords = (area) => {
 
 /**
  * CampusMap Component
- * Interactive map allowing users to view rooms and admins to add, move, and delete map pins.
+ * * Renders an interactive map with draggable pins representing different rooms.
+ * Provides administrative tools to add, move, and delete pins.
+ * * @component
+ * @param {Object} props
+ * @param {Array} props.areas - List of area objects to display on the map.
+ * @param {Function} props.onSelectArea - Callback when a room pin is clicked.
+ * @param {Function} props.onUpdateAreas - Callback to refresh data from the server.
+ * @param {Object} props.user - The currently authenticated user object.
  */
 const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
+    const showNotification = useNotification();
+    
     const [isMapEditing, setIsMapEditing] = useState(false);
     const [editMode, setEditMode] = useState('none'); 
     const [draggingId, setDraggingId] = useState(null);
@@ -51,13 +64,13 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     const dragPositionRef = useRef({ top: 0, left: 0 }); 
     const dragStartOffset = useRef({ x: 0, y: 0 });
 
-    // Ensure edit mode resets when edit mode is toggled off
     useEffect(() => {
         if (!isMapEditing) setEditMode('none');
     }, [isMapEditing]);
 
-    // --- Drag & Drop Logic ---
-
+    /**
+     * Initializes the dragging sequence for a room pin.
+     */
     const handleMouseDown = (e, area) => {
         if (!isMapEditing || editMode !== 'move') return;
         e.preventDefault();
@@ -81,6 +94,9 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         setDraggingId(area.id); 
     };
 
+    /**
+     * Handles the movement and final drop of a dragged pin.
+     */
     useEffect(() => {
         if (draggingId === null) return; 
 
@@ -114,9 +130,10 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 }, getAuthHeader());
                 
                 onUpdateAreas();
+                showNotification("Position updated successfully", "success");
             } catch (error) {
                 console.error("Failed to save coordinates:", error);
-                alert("Error saving position");
+                showNotification("Failed to save new position", "error");
             }
             setDraggingId(null); 
         };
@@ -128,10 +145,11 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [draggingId, onUpdateAreas]);
+    }, [draggingId, onUpdateAreas, showNotification]);
 
-    // --- Action Handlers ---
-
+    /**
+     * Creates a new room at the clicked map coordinates.
+     */
     const handleMapClick = async (e) => {
         if (editMode !== 'add') return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -155,23 +173,29 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 });
                 
                 onUpdateAreas(); 
+                showNotification(`Room "${roomName}" created`, "success");
             } catch (error) {
                 console.error("Failed to create room:", error);
-                alert("Failed to create room");
+                showNotification("Could not create room", "error");
             }
         }
     };
     
+    /**
+     * Deletes a selected room from the system.
+     */
     const handleDeleteClick = async (e, areaToDelete) => {
         e.stopPropagation();
         const name = areaToDelete.name || areaToDelete.room || 'this room';
+        
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
                 await axios.delete(`${API_BASE_URL}/api/areas/${areaToDelete.id}`, getAuthHeader());
                 onUpdateAreas();
+                showNotification("Room deleted", "success");
             } catch (error) {
                 console.error("Failed to delete room:", error);
-                alert("Failed to delete room");
+                showNotification("Failed to delete the selected room", "error");
             }
         }
     };
@@ -179,7 +203,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     return (
         <div className="map-scroll-wrapper">
             {user?.role === 'admin' && (
-                <>
+                <div className="map-admin-controls">
                     {!isMapEditing ? (
                         <button className="map-control-btn" onClick={() => setIsMapEditing(true)}>
                             ✏️ Edit Map
@@ -190,13 +214,13 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                             <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Room">✋ Move</button>
                             <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Room">🗑️ Delete</button>
                             
-                            <div style={{ width: '100%', height: '1px', background: '#ddd', margin: '5px 0' }}></div>
+                            <div className="toolbar-divider"></div>
                             
-                            <button className="save-btn" style={{background: '#2ecc71', color: 'white'}} onClick={() => setIsMapEditing(false)}>💾 Save</button>
+                            <button className="save-btn" onClick={() => setIsMapEditing(false)}>💾 Save</button>
                             <button className="cancel-btn" onClick={() => { setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
                         </div>
                     )}
-                </>
+                </div>
             )}
             
             <div
