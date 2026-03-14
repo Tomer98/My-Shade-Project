@@ -1,22 +1,27 @@
+/**
+ * Smart Shade Algorithm Configuration
+ * Defines the weights, limits, and thresholds used to calculate 
+ * the shade's physical position based on real-time sensor data.
+ */
 module.exports = {
-    // הגדרת משקולות לאלגוריתם (סך הכל 1.0)
+    // Algorithm Weights (Must sum to 1.0)
     WEIGHTS: {
-        TEMP: 0.6,  // טמפרטורה משפיעה ב-60% על ההחלטה
-        LIGHT: 0.4  // אור משפיע ב-40% על ההחלטה
+        TEMP: 0.6,  // Temperature accounts for 60% of the decision
+        LIGHT: 0.4  // Light intensity accounts for 40% of the decision
     },
 
-    // גבולות נורמליזציה (כדי לחשב ציון)
+    // Normalization Limits (Used to calculate the 0-100 score)
     LIMITS: {
-        MAX_TEMP: 35, // ב-35 מעלות הציון של הטמפ' הוא 100
-        MIN_TEMP: 20, // מתחת ל-20 מעלות הציון הוא 0 (נעים)
-        MAX_LIGHT: 100 // 100% אור זה הציון המקסימלי
+        MAX_TEMP: 35,  // At 35°C, the temperature score hits 100
+        MIN_TEMP: 20,  // Below 20°C, the temperature score is 0 (pleasant)
+        MAX_LIGHT: 100 // 100% light intensity is the maximum score
     },
 
-    // מדרגות סגירה (כדי שהוילון לא יזוז על כל אחוז קטן)
+    // Closure Thresholds (Prevents the shade from twitching on minor changes)
     THRESHOLDS: {
-        LEVEL_1: 20, // ציון מעל 20 -> סגור 25%
-        LEVEL_2: 40, // ציון מעל 40 -> סגור 50%
-        LEVEL_3: 70, // ציון מעל 70 -> סגור 75%
-        LEVEL_4: 90  // ציון מעל 90 -> סגור 100%
+        LEVEL_1: 20, // Score > 20 -> Close 25%
+        LEVEL_2: 40, // Score > 40 -> Close 50%
+        LEVEL_3: 70, // Score > 70 -> Close 75%
+        LEVEL_4: 90  // Score > 90 -> Close 100%
     }
 };
