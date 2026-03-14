@@ -1,50 +1,62 @@
+/**
+ * Authentication & Authorization Middleware
+ */
 const jwt = require('jsonwebtoken');
 
+/**
+ * Middleware: Verify JWT Token
+ * Checks if the user has a valid token before allowing access to protected routes.
+ */
 const verifyToken = (req, res, next) => {
-  // קבלת הטוקן (תמיכה בכל סוגי הכותרות)
-  let token = req.headers['authorization'] || req.headers['x-access-token'];
+    // Get token from headers (supports standard authorization and custom headers)
+    let token = req.headers['authorization'] || req.headers['x-access-token'];
 
-  // אם אין טוקן בכלל
-  if (!token) {
-    return res.status(403).send("A token is required for authentication");
-  }
-
-  try {
-    // ניקוי המילה "Bearer " בצורה בטוחה
-    if (token.startsWith('Bearer ')) {
-        token = token.slice(7).trim(); // שינוי ל-trim() למניעת קריסות
+    if (!token) {
+        return res.status(403).json({ success: false, message: "A token is required for authentication" });
     }
 
-    // מפתח גיבוי למקרה ש-.env לא נטען בדוקר
-    const secretKey = process.env.JWT_SECRET || "my_secret_key";
-    
-    // אימות
-    const decoded = jwt.verify(token, secretKey);
-    req.user = decoded;
+    try {
+        // Safely extract the token if it uses the "Bearer" scheme
+        if (token.startsWith('Bearer ')) {
+            token = token.slice(7).trim(); 
+        }
 
-  } catch (err) {
-    console.log("⚠️ Token Error:", err.message);
-    return res.status(401).send("Invalid Token");
-  }
-  
-  return next();
+        // Fallback secret for local/Docker development
+        const secretKey = process.env.JWT_SECRET || "my_secret_key";
+        
+        // Verify token and attach the decoded user info to the request
+        const decoded = jwt.verify(token, secretKey);
+        req.user = decoded;
+
+    } catch (err) {
+        console.log("⚠️ Token Error:", err.message);
+        return res.status(401).json({ success: false, message: "Invalid or expired Token" });
+    }
+    
+    return next();
 };
 
+/**
+ * Middleware: Role-Based Access Control (RBAC)
+ * Must be placed AFTER verifyToken in the route definition.
+ * @param {Array<string>} allowedRoles - Array of roles permitted to access the route.
+ */
 const checkRole = (allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-        return res.status(401).send("User not authenticated");
-    }
-    
-    // הגנה מקריסה אם למשתמש אין תפקיד מוגדר
-    const userRole = req.user.role || 'user';
-    
-    if (!allowedRoles.includes(userRole)) {
-      console.log(`⛔ Access denied. User role: ${userRole}, Required: ${allowedRoles}`);
-      return res.status(403).send("Access denied");
-    }
-    next();
-  };
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "User not authenticated" });
+        }
+        
+        // Fallback to basic 'user' role if none is defined
+        const userRole = req.user.role || 'user';
+        
+        if (!allowedRoles.includes(userRole)) {
+            console.log(`⛔ Access denied. User role: ${userRole}, Required: ${allowedRoles}`);
+            return res.status(403).json({ success: false, message: "Access denied: Insufficient permissions" });
+        }
+        
+        next();
+    };
 };
 
 module.exports = { verifyToken, checkRole };
