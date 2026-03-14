@@ -4,6 +4,7 @@ import SensorChart from './SensorChart';
 import SensorMap from './SensorMap';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
+import { useNotification } from '../context/NotificationContext';
 import './RoomDashboard.css';
 
 // TODO: In production, move to .env file
@@ -20,6 +21,8 @@ const API_BASE_URL = 'http://localhost:3001/api';
  * @param {Function} props.onUpdate - Callback to refresh parent component state.
  */
 const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
+    const showNotification = useNotification();
+
     // --- State Management ---
     const [sensors, setSensors] = useState([]);
     const [shadePosition, setShadePosition] = useState(selectedArea?.current_position || 0);
@@ -102,18 +105,18 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         const fetchHistory = async () => {
             setHistoryLoading(true);
             try {
-                // 🛡️ שימוש בפונקציה המיובאת
                 const response = await axios.get(`${API_BASE_URL}/sensors/history/${selectedArea.id}`, getAuthHeader());
                 setSensorHistory(response.data);
             } catch (error) {
                 console.error("History fetch error:", error);
+                showNotification("Could not load history data.", "error");
                 setSensorHistory([]);
             } finally {
                 setHistoryLoading(false);
             }
         };
         fetchHistory();
-    }, [showGraph, selectedArea.id]);
+    }, [showGraph, selectedArea.id, showNotification]);
 
 
     // --- Action Handlers ---
@@ -134,10 +137,10 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             }, getAuthHeader());
             
             if (onUpdate) onUpdate();
-            alert(`Command Sent: ${newState} at ${shadePosition}%`);
+            showNotification(`Command Sent: ${newState} at ${shadePosition}%`, "success");
         } catch (error) {
             console.error("Manual control failed:", error);
-            alert("Failed to send command.");
+            showNotification("Failed to send command.", "error");
         } finally {
             setIsSendingCommand(false);
         }
@@ -151,10 +154,10 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         try {
             await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/state`, { state: 'AUTO' }, getAuthHeader());
             if (onUpdate) onUpdate();
-            alert("System reverted to AUTO mode.");
+            showNotification("System reverted to AUTO mode.", "success");
         } catch (error) {
             console.error("Auto revert failed:", error);
-            alert("Failed to revert to auto.");
+            showNotification("Failed to revert to auto.", "error");
         } finally {
             setIsSendingCommand(false);
         }
@@ -170,6 +173,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             }, getAuthHeader());
             
             setSaveButtonText('Saved! ✓');
+            showNotification("Sensor layout saved successfully.", "success");
             setTimeout(() => {
                 setSensorEditMode('none');   
                 setIsSensorEditing(false); 
@@ -179,6 +183,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         } catch (error) {
             console.error('Save layout failed:', error);
             setSaveButtonText('Error!');
+            showNotification("Failed to save layout.", "error");
             setTimeout(() => setSaveButtonText('💾 Save'), 2000);
         }
     };
@@ -196,11 +201,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 weather_condition: simCondition 
             }, getAuthHeader());
             
-            alert(`Simulated data injected!`);
+            showNotification(`Simulated data injected!`, "info");
             if (onUpdate) onUpdate(); 
         } catch (error) {
             console.error("Simulation failed:", error);
-            alert("Failed to inject simulation data");
+            showNotification("Failed to inject simulation data.", "error");
         }
     };
 
@@ -217,11 +222,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 weather_condition: 'Clear'
             }, getAuthHeader());
             
-            alert(`Simulation Stopped! Back to Real Weather.`);
+            showNotification(`Simulation Stopped! Back to Real Weather.`, "info");
             if (onUpdate) onUpdate(); 
         } catch (error) {
             console.error("Failed to stop simulation:", error);
-            alert("Error stopping simulation");
+            showNotification("Error stopping simulation.", "error");
         }
     };
 
@@ -241,14 +246,14 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             await axios.post(`${API_BASE_URL}/areas/${selectedArea.id}/image`, formData, {
                 headers: { 
                     'Content-Type': 'multipart/form-data',
-                    ...authConfig.headers
+                    ...authConfig?.headers 
                 },
             });
-            alert('Image updated!');
+            showNotification('Map image updated!', "success");
             if (onUpdate) onUpdate(); 
         } catch (error) {
             console.error('Image upload failed:', error);
-            alert('Failed to upload.');
+            showNotification('Failed to upload map image.', "error");
         } finally {
             setIsUploading(false);
             e.target.value = null; 

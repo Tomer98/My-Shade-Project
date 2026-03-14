@@ -1,17 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getAuthHeader } from '../utils/auth';
+import { socket } from '../socket';
 import './SmartDashboard.css';
 
-// TODO: In production, move to .env file
 const API_BASE_URL = 'http://localhost:3001/api';
 
-/**
- * SmartDashboard Component
- * A real-time ticker that displays the latest AI algorithm metrics 
- * and its current decision (OPEN/CLOSE) based on live sensor data.
- */
 const SmartDashboard = () => {
-    // Default state prevents undefined errors before the first fetch
     const [metrics, setMetrics] = useState({ 
         temp: 0, 
         light: 0, 
@@ -21,38 +16,49 @@ const SmartDashboard = () => {
         reason: 'Loading...' 
     });
 
-    const fetchSmartData = async () => {
+    const fetchInitialData = async () => {
         try {
-            const res = await axios.get(`${API_BASE_URL}/sensors/latest`);
-            if (res.data) setMetrics(res.data);
+            const res = await axios.get(`${API_BASE_URL}/sensors/latest`, getAuthHeader());
+            
+            // --- FIX START ---
+            // If the server returns { success: true, data: {...} }, use res.data.data
+            // If it returns the row directly, use res.data
+            const latestData = res.data.data || res.data;
+            
+            if (latestData) {
+                setMetrics(latestData);
+            }
+            // --- FIX END ---
+
         } catch (err) { 
-            // Changed to warn so it doesn't spam the error console as aggressively every 2 seconds if offline
             console.warn("Stats fetch failed - system might be offline"); 
         }
     };
 
-    // Polling mechanism: fetch data every 2 seconds
     useEffect(() => {
-        fetchSmartData();
-        const interval = setInterval(fetchSmartData, 2000); 
-        return () => clearInterval(interval);
+        fetchInitialData();
+
+        socket.on('smartDataUpdate', (newData) => {
+            setMetrics(newData);
+        });
+
+        return () => {
+            socket.off('smartDataUpdate');
+        };
     }, []);
 
-    // Dynamic styling variables
     const decisionColor = metrics.decision === 'CLOSE' ? '#c0392b' : '#27ae60';
-    // Ensure score is a number to prevent NaN errors in the UI
-    const scoreValue = metrics.score || 0; 
+    
+    // Safety check: ensure score is always treated as a number
+    const scoreValue = typeof metrics.score === 'number' ? metrics.score : parseFloat(metrics.score) || 0; 
 
     return (
         <div className="smart-dashboard-container">
-            
-            {/* Left Side: Icon and Title */}
             <div className="smart-dashboard-left">
                 <span className="smart-icon">🧠</span>
                 <span className="smart-title">Smart Algorithm</span>
             </div>
 
-            {/* Middle: Real-time Metrics */}
             <div className="smart-metrics">
                 <span>🌡️ <b>{metrics.temp}°C</b></span>
                 <span>☁️ <b>{metrics.clouds}%</b></span>
@@ -61,7 +67,6 @@ const SmartDashboard = () => {
                 <div className="smart-score-container">
                     <span>📊 Score: <b>{scoreValue.toFixed(2)}</b></span>
                     <div className="score-bar-bg">
-                        {/* Inline styles kept here only for purely dynamic values (width & color) */}
                         <div 
                             className="score-bar-fill" 
                             style={{ 
@@ -73,15 +78,13 @@ const SmartDashboard = () => {
                 </div>
             </div>
 
-            {/* Right Side: AI Decision Badge */}
             <div 
                 className="smart-decision-badge" 
                 style={{ backgroundColor: decisionColor }}
-                title={metrics.reason} /* Allows user to hover and read the full, uncut reason */
+                title={metrics.reason} 
             >
-                {metrics.decision}: {metrics.reason.split(':')[0]}
+                {metrics.decision}: {metrics.reason ? metrics.reason.split(':')[0] : 'N/A'}
             </div>
-
         </div>
     );
 };

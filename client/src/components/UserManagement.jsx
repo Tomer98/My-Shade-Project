@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { useNotification } from '../context/NotificationContext';
 import './UserManagement.css';
 
-// TODO: In production, move to .env file
 const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * Helper function: Returns the appropriate CSS class for a user role badge.
+ * @param {string} role - The user role (admin, maintenance, planner).
+ * @returns {string} CSS class name.
  */
 const getRoleClass = (role) => {
     if (role === 'admin') return 'role-admin';
@@ -18,20 +20,18 @@ const getRoleClass = (role) => {
 /**
  * UserManagement Component
  * Admin dashboard for viewing, adding, and deleting system users.
+ * Uses global notification system for feedback.
+ * * @component
  */
 const UserManagement = () => {
+    const showNotification = useNotification();
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ username: '', password: '', role: 'planner' });
     const [loading, setLoading] = useState(false);
-    
-    // Unified messaging state for both errors and success notifications
-    const [message, setMessage] = useState({ text: '', type: '' });
 
-    const showMessage = (text, type) => {
-        setMessage({ text, type });
-        setTimeout(() => setMessage({ text: '', type: '' }), 4000);
-    };
-
+    /**
+     * Fetches the list of all users from the server.
+     */
     const fetchUsers = async () => {
         const config = getAuthHeader();
         if (!config) return;
@@ -43,42 +43,48 @@ const UserManagement = () => {
                 setUsers(res.data.data);
             }
         } catch (err) {
-            showMessage('Failed to fetch users. Check connection or permissions.', 'error');
+            showNotification('Failed to fetch users. Check permissions.', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    // Load users on component mount
     useEffect(() => {
         fetchUsers();
     }, []);
 
+    /**
+     * Handles the creation of a new system user.
+     */
     const handleAddUser = async () => {
         if (!newUser.username || !newUser.password) {
-            showMessage('Username and password are required.', 'error');
+            showNotification('Username and password are required.', 'error');
             return;
         }
         
         const config = getAuthHeader();
         if (!config) {
-            showMessage('Session expired. Please log in again.', 'error');
+            showNotification('Session expired. Please log in again.', 'error');
             return;
         }
 
         try {
             const response = await axios.post(`${API_BASE_URL}/users`, newUser, config);
             if (response.data.success) {
-                setNewUser({ username: '', password: '', role: 'planner' }); // Reset form
-                showMessage('User added successfully! 🎉', 'success');
-                fetchUsers(); // Refresh list
+                setNewUser({ username: '', password: '', role: 'planner' });
+                showNotification(`User "${newUser.username}" added successfully! 🎉`, 'success');
+                fetchUsers();
             }
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Failed to add user.';
-            showMessage(errorMsg, 'error');
+            showNotification(errorMsg, 'error');
         }
     };
 
+    /**
+     * Permanently deletes a user by ID.
+     * @param {number|string} id - The unique ID of the user to delete.
+     */
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
         
@@ -88,11 +94,11 @@ const UserManagement = () => {
         try {
             const response = await axios.delete(`${API_BASE_URL}/users/${id}`, config);
             if (response.data.success) {
-                showMessage('User deleted successfully.', 'success');
-                fetchUsers(); // Refresh list
+                showNotification('User deleted successfully.', 'success');
+                fetchUsers();
             }
         } catch (err) {
-            showMessage('Failed to delete user.', 'error');
+            showNotification('Failed to delete user.', 'error');
         }
     };
 
@@ -100,7 +106,6 @@ const UserManagement = () => {
         <div className="user-management-container">
             <h3>👥 User Management (Admin Only)</h3>
             
-            {/* Add User Form */}
             <div className="add-user-form">
                 <input 
                     placeholder="Username" 
@@ -121,19 +126,6 @@ const UserManagement = () => {
                 <button onClick={handleAddUser}>+ Add User</button>
             </div>
             
-            {/* Notification Area */}
-            {message.text && (
-                <p style={{ 
-                    color: message.type === 'error' ? '#e74c3c' : '#27ae60',
-                    fontWeight: 'bold',
-                    marginTop: '-10px',
-                    marginBottom: '15px'
-                }}>
-                    {message.text}
-                </p>
-            )}
-
-            {/* Users Table */}
             {loading ? <p>Loading users...</p> : (
                 <table className="users-table">
                     <thead>
