@@ -1,2 +1,29 @@
-# Auto detect text files and perform LF normalization
+/**
+ * @file .gitattributes
+ * @description Global Git configuration for file handling and line-ending normalization.
+ * Ensures compatibility between Windows (CRLF) and Linux/Docker (LF) environments.
+ */
+
+/** * @setting text=auto
+ * @desc Auto-detect text files and perform LF normalization on commit.
+ */
 * text=auto
+
+/** * @group Linux/Docker Compatibility
+ * @desc Force LF (Line Feed) for scripts and config files to prevent execution errors in containers.
+ */
+*.sh text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+.env* text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+
+/** * @group Binary Files
+ * @desc Ensure images and other binary assets are never modified by Git's text normalization.
+ */
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary

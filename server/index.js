@@ -1,38 +1,36 @@
+/**
+ * Main Application Entry Point
+ * Configures the Express server, connects middleware, establishes WebSocket
+ * communication, and mounts all route handlers.
+ */
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const http = require('http'); 
 const { Server } = require("socket.io"); 
-const fs = require('fs'); 
 const helmet = require('helmet'); 
 const rateLimit = require('express-rate-limit'); 
 
-
-require('dotenv').config();
-
-// ייבוא בסיס הנתונים
+// Database Connection
 const db = require('./config/db');
 
-// ייבוא הנתיבים
+// Route Imports
+const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const sensorRoutes = require('./routes/sensorRoutes');
 const areaRoutes = require('./routes/areaRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const schedulerRoutes = require('./routes/schedulerRoutes');
 
-// ייבוא הגדרות ה-multer המרכזיות
-const upload = require('./middleware/upload');
-
-// ייבוא המתזמן החכם
-const { initScheduler, updateSimulation } = require('./services/scheduler');
+// Service Imports
+const { initScheduler } = require('./services/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// --- יצירת שרת HTTP ---
+// --- HTTP Server & WebSockets Setup ---
 const server = http.createServer(app);
-
-// --- הגדרת Socket.io ---
 const io = new Server(server, {
     cors: {
         origin: "*", 
@@ -44,12 +42,12 @@ const io = new Server(server, {
 // 🛡️ Security Middleware
 // ==========================================
 
-// 1. Helmet: הגדרות אבטחה (מאפשר טעינת תמונות ממקורות שונים)
+// 1. Helmet: Security headers (crossOriginResourcePolicy disabled to allow image loading)
 app.use(helmet({
     crossOriginResourcePolicy: false, 
 }));
 
-// 2. Rate Limiting: הגנה מהפצצות (1000 בקשות בדקה - מרווח לפיתוח)
+// 2. Rate Limiting: Prevent brute-force & DDoS (1000 requests per minute)
 const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, 
     max: 1000, 
@@ -67,103 +65,49 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// הזרקת Socket.io לכל בקשה
+// Inject Socket.io into every incoming request object
 app.use((req, res, next) => {
     req.io = io;
     next();
 });
 
 // ==========================================
-// 📂 ניהול קבצים (שימוש בתיקייה הקיימת uploads)
+// 📂 Static File Management (Uploads)
 // ==========================================
-
-// חשיפת תיקיית התמונות הסטטיות.
-// הלקוח יבקש /uploads/filename.jpg והשרת יחזיר את הקובץ מהתיקייה
-// server/uploads/filename.jpg.
-// זה מתאים גם להגדרות הדוקר.
+// Expose the uploads directory for serving room maps
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
-// נתיבים (Routes)
+// 🛣️ API Routes
 // ==========================================
 
+// 1. Authentication (Public - Generates Tokens)
+app.use('/api/auth', authRoutes);
+
+// 2. Core System Routes (Protected by Middleware inside their files)
 app.use('/api/users', userRoutes);
-app.use('/api/sensors', sensorRoutes);
 app.use('/api/areas', areaRoutes);
-app.use('/api/alerts', alertRoutes);
+app.use('/api/sensors', sensorRoutes);
 app.use('/api/schedules', schedulerRoutes);
-
-// נתיב להעלאת תמונה
-app.post('/api/upload', upload.single('image'), (req, res) => {
-    try {
-        if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-        
-        // ה-URL שהלקוח מקבל (מתחיל ב-/uploads/)
-        const imageUrl = `/uploads/${req.file.filename}`;
-        res.json({ success: true, filePath: imageUrl, message: 'Image uploaded successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error during upload' });
-    }
-});
+app.use('/api/alerts', alertRoutes);
 
 // ==========================================
-// 🛠️ נתיבי שירות ותיקון
+// Server Initialization
 // ==========================================
 
-app.get('/create-schedules-table', async (req, res) => {
-    try {
-        const sql = `
-            CREATE TABLE IF NOT EXISTS schedules (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                area_id INT NOT NULL,
-                execution_time VARCHAR(10) NOT NULL,
-                action_type ENUM('OPEN', 'CLOSE') NOT NULL,
-                target_position INT DEFAULT 0,
-                days VARCHAR(50) DEFAULT NULL,
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
-            )
-        `;
-        await db.query(sql);
-        res.send("✅ Table 'schedules' created successfully!");
-    } catch (err) { res.send("❌ Error: " + err.message); }
-});
-
-app.get('/fix-db', async (req, res) => {
-    try {
-        await db.query("ALTER TABLE weather_logs ADD COLUMN score FLOAT DEFAULT 0;");
-        res.send("✅ Database Fixed! Added 'score' column.");
-    } catch (err) { res.send("ℹ️ Note: " + err.message); }
-});
-
-// Endpoint להפעלת סימולציה (Test AI)
-app.post('/api/simulation', (req, res) => {
-    const { isActive, temp, light } = req.body;
-    
-    // קריאה לפונקציה שיצרנו ב-scheduler.js
-    updateSimulation(isActive, temp, light);
-
-    res.json({ 
-        success: true, 
-        message: isActive ? 'Simulation Started' : 'Simulation Stopped',
-        data: { temp, light }
+// WebSocket Connection Handling
+io.on('connection', (socket) => {
+    // console.log(`🔌 New client connected: ${socket.id}`);
+    socket.on('disconnect', () => {
+        // console.log(`🔌 Client disconnected: ${socket.id}`)
     });
 });
 
-// ==========================================
-// הפעלת השרת
-// ==========================================
-
-io.on('connection', (socket) => {
-    console.log(`🔌 New client connected: ${socket.id}`);
-    socket.on('disconnect', () => console.log(`🔌 Client disconnected: ${socket.id}`));
-});
-
+// Start listening
 server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     
-    // הפעלת המתזמן החכם
+    // Initialize the Smart Automation Scheduler
     try {
         initScheduler(io); 
     } catch (err) {

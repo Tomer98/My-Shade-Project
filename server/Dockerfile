@@ -1,20 +1,18 @@
-# שימוש בגרסת Node קלה ורשמית
+# 1. Base Image
 FROM node:18-alpine
 
-# יצירת תיקיית עבודה בתוך הקונטיינר
+# 2. Working Directory
 WORKDIR /app
 
-# העתקת קבצי ההגדרות (כדי לנצל את ה-Cache של Docker)
+# 3. Dependencies
 COPY package*.json ./
-
-# התקנת הספריות
 RUN npm install
 
-# העתקת כל שאר הקוד
+# 4. Source Code
 COPY . .
 
-# חשיפת הפורט של השרת
+# 5. Port Expose
 EXPOSE 3001
 
-# הפקודה להרצת השרת
+# 6. Execution
 CMD ["npm", "start"]
