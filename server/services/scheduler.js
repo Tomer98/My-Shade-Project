@@ -107,7 +107,6 @@ const initScheduler = (io) => {
                     currentLight = area.sim_light;
                     currentCondition = area.weather_condition || 'Clear'; 
                     isSimulated = true;
-                    // console.log(`🔎 Sim Room ${area.id}: Temp ${area.sim_temp}°C, Light ${area.sim_light}lx`);
                 } else {
                     currentTemp = realWeather.temp;
                     currentLight = realWeather.light;
