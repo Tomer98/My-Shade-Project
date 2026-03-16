@@ -1,12 +1,11 @@
 /**
  * User Controller
- * Handles user authentication (Login) and administrative management of users.
+ * Handles administrative management of users.
  */
 const db = require('../config/db');
-const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
-// Secret key for JWT signing
-const SECRET_KEY = process.env.JWT_SECRET || "my_secret_key";
+const SALT_ROUNDS = 10; // Cost factor: higher = slower to crack, slower to hash
 
 /**
  * Fetch all users (Excluding passwords for security).
@@ -32,7 +31,13 @@ exports.createUser = async (req, res) => {
     }
 
     try {
-        await db.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, password, role]);
+        // Hash the password before storing — bcrypt adds a random salt automatically
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+        await db.query(
+            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+            [username, hashedPassword, role]
+        );
         res.json({ success: true, message: 'User created successfully' });
     } catch (error) {
         console.error("Error creating user:", error);
