@@ -21,8 +21,7 @@ const verifyToken = (req, res, next) => {
             token = token.slice(7).trim(); 
         }
 
-        // Fallback secret for local/Docker development
-        const secretKey = process.env.JWT_SECRET || "my_secret_key";
+        const secretKey = process.env.JWT_SECRET;
         
         // Verify token and attach the decoded user info to the request
         const decoded = jwt.verify(token, secretKey);

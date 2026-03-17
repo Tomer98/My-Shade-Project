@@ -38,14 +38,14 @@ services:
     restart: always
     ports:
       - "3001:3001"
+    env_file:
+      - ./server/.env
     environment:
       - PORT=3001
       - DB_HOST=mysqldb
       - DB_USER=root
       - DB_PASSWORD=password123
       - DB_NAME=shade_system_test
-      # שימוש חכם: מושך את הסוד מה-.env שלך, ואם אין, משתמש בגיבוי
-      - JWT_SECRET=${JWT_SECRET:-SmartShade_Project_2026_Tomer_Super_Secret_Key_!@#987}
       - CORS_ORIGINS=http://localhost:5173
     
     # --- Live Sync & Persistence ---
