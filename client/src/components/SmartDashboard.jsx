@@ -46,7 +46,7 @@ const SmartDashboard = () => {
         };
     }, []);
 
-    const decisionColor = metrics.decision === 'CLOSE' ? '#c0392b' : '#27ae60';
+    const decisionColor = ['CLOSED', 'EXTREME_HEAT', 'EXTREME_COLD', 'STORM'].includes(metrics.decision) ? '#c0392b' : '#27ae60';
     
     // Safety check: ensure score is always treated as a number
     const scoreValue = typeof metrics.score === 'number' ? metrics.score : parseFloat(metrics.score) || 0; 
