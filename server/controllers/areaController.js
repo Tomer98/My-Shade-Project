@@ -164,15 +164,21 @@ exports.updateAreaState = async (req, res) => {
 
     try {
         let newPosition = position;
-        
+
         // Auto-set position if only state was provided
         if (newPosition === undefined) {
             if (state === 'OPEN') newPosition = 0;
             else if (state === 'CLOSED') newPosition = 100;
+            // AUTO: leave newPosition undefined — scheduler recalculates within 5 seconds
         }
-        
-        let query = 'UPDATE areas SET shade_state = ?, current_position = ?';
-        let params = [state, newPosition];
+
+        let query = 'UPDATE areas SET shade_state = ?';
+        let params = [state];
+
+        if (newPosition !== undefined) {
+            query += ', current_position = ?';
+            params.push(newPosition);
+        }
         
         // Manual override timer management
         if (state === 'AUTO') query += ', last_manual_change = NULL';
@@ -199,7 +205,7 @@ exports.updateAreaState = async (req, res) => {
         // Insert log with safe area_id
         await db.query(
             "INSERT INTO logs (area_id, temperature, light_intensity, current_position, action_type) VALUES (?, 0, 0, ?, ?)",
-            [logAreaId, newPosition, actionType]
+            [logAreaId, newPosition ?? 0, actionType]
         );
 
         if (req.io) {
