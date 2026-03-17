@@ -13,6 +13,7 @@ describe('Weather Service - Resilience', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        weatherService.clearCache();
     });
 
     test('should return valid data on successful API call', async () => {

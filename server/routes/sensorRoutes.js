@@ -32,9 +32,9 @@ router.get('/history/:areaId', verifyToken, sensorController.getHistoryByArea);
 
 /**
  * @route   POST /
- * @desc    Add raw sensor data (Typically called by physical IoT hardware)
- * @access  Public (Open for hardware integration / API Key checking can be added)
+ * @desc    Add raw sensor data
+ * @access  Private (All authenticated users)
  */
-router.post('/', sensorController.addSensorData);
+router.post('/', verifyToken, sensorController.addSensorData);
 
 module.exports = router;
