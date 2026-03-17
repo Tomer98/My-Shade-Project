@@ -3,9 +3,8 @@ import axios from 'axios';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
 import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './CampusMap.css';
-
-const API_BASE_URL = 'http://localhost:3001';
 
 /**
  * Parses a coordinate value (string or number) into a clean percentage number.
@@ -125,7 +124,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             try {
                 const finalPos = dragPositionRef.current;
                 
-                await axios.put(`${API_BASE_URL}/api/areas/${draggingId}/map-coordinates`, {
+                await axios.put(`${API_BASE_URL}/areas/${draggingId}/map-coordinates`, {
                     map_coordinates: JSON.stringify(finalPos)
                 }, getAuthHeader());
                 
@@ -165,7 +164,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 formData.append('map_coordinates', JSON.stringify({ top, left }));
                 
                 const authConfig = getAuthHeader();
-                await axios.post(`${API_BASE_URL}/api/areas`, formData, {
+                await axios.post(`${API_BASE_URL}/areas`, formData, {
                     headers: { 
                         'Content-Type': 'multipart/form-data',
                         ...authConfig?.headers 
@@ -190,7 +189,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
-                await axios.delete(`${API_BASE_URL}/api/areas/${areaToDelete.id}`, getAuthHeader());
+                await axios.delete(`${API_BASE_URL}/areas/${areaToDelete.id}`, getAuthHeader());
                 onUpdateAreas();
                 showNotification("Room deleted", "success");
             } catch (error) {

@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { API_BASE_URL } from '../config';
 import './SchedulerPanel.css';
-
-// TODO: In production, move to .env file
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * SchedulerPanel Component

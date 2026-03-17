@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
 import { socket } from '../socket';
+import { API_BASE_URL } from '../config';
 import './SmartDashboard.css';
-
-const API_BASE_URL = 'http://localhost:3001/api';
 
 const SmartDashboard = () => {
     const [metrics, setMetrics] = useState({ 

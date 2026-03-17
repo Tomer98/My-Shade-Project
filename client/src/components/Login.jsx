@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import './Login.css';
-
-// TODO: In production, move to .env file
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * Login Component
