@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
 import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './UserManagement.css';
-
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * Helper function: Returns the appropriate CSS class for a user role badge.
@@ -21,7 +20,7 @@ const getRoleClass = (role) => {
  * UserManagement Component
  * Admin dashboard for viewing, adding, and deleting system users.
  * Uses global notification system for feedback.
- * * @component
+ * @component
  */
 const UserManagement = () => {
     const showNotification = useNotification();

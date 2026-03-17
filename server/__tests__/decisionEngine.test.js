@@ -52,8 +52,8 @@ describe('Decision Engine - calculateShadeAction', () => {
         });
 
         test('should return higher score for brighter light', () => {
-            const dim = calculateShadeAction(25, 1000, 'Clear');
-            const bright = calculateShadeAction(25, 9000, 'Clear');
+            const dim = calculateShadeAction(25, 10000, 'Clear');  // low sun / overcast
+            const bright = calculateShadeAction(25, 60000, 'Clear'); // near solar noon, clear
             expect(bright.score).toBeGreaterThan(dim.score);
         });
 
@@ -61,6 +61,40 @@ describe('Decision Engine - calculateShadeAction', () => {
             const result = calculateShadeAction(27, 5000, 'Clear');
             expect(result.score).toBeGreaterThanOrEqual(0);
             expect(result.score).toBeLessThanOrEqual(1);
+        });
+    });
+
+    // === Stepped Scoring (THRESHOLDS) ===
+
+    describe('Stepped Scoring', () => {
+        test('should snap to position 0% when raw score is below LEVEL_1 (20)', () => {
+            const result = calculateShadeAction(21, 1000, 'Clear'); // raw ≈ 5%
+            expect(result.score).toBe(0);
+        });
+
+        test('should snap to position 25% when raw score is between LEVEL_1 and LEVEL_2 (20-40)', () => {
+            const result = calculateShadeAction(24, 20000, 'Clear'); // raw ≈ 26%
+            expect(result.score).toBe(0.25);
+        });
+
+        test('should snap to position 50% when raw score is between LEVEL_2 and LEVEL_3 (40-70)', () => {
+            const result = calculateShadeAction(27, 40000, 'Clear'); // raw ≈ 48%
+            expect(result.score).toBe(0.50);
+        });
+
+        test('should snap to position 75% when raw score is between LEVEL_3 and LEVEL_4 (70-90)', () => {
+            const result = calculateShadeAction(31, 60000, 'Clear'); // raw ≈ 74%
+            expect(result.score).toBe(0.75);
+        });
+
+        test('should snap to position 100% when raw score is above LEVEL_4 (90)', () => {
+            const result = calculateShadeAction(34, 75000, 'Clear'); // raw ≈ 94%
+            expect(result.score).toBe(1.0);
+        });
+
+        test('reason string should still contain the raw continuous score', () => {
+            const result = calculateShadeAction(27, 3000, 'Clear');
+            expect(result.reason).toMatch(/Score: \d+\.\d+/);
         });
     });
 

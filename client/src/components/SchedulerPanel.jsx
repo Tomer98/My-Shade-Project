@@ -1,27 +1,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './SchedulerPanel.css';
-
-// TODO: In production, move to .env file
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * SchedulerPanel Component
  * Allows admins to schedule automated open/close actions for specific rooms.
  */
 const SchedulerPanel = () => {
+    const showNotification = useNotification();
     const [schedules, setSchedules] = useState([]);
     const [areas, setAreas] = useState([]);
     const [newTask, setNewTask] = useState({ area_id: '', execution_time: '', action_type: 'OPEN' });
-    
-    // UI State for replacing window.alert()
-    const [message, setMessage] = useState({ text: '', type: '' });
-
-    const showNotification = (text, type) => {
-        setMessage({ text, type });
-        setTimeout(() => setMessage({ text: '', type: '' }), 3000);
-    };
 
     const fetchData = async () => {
         const config = getAuthHeader();
@@ -81,19 +73,6 @@ const SchedulerPanel = () => {
         <div className="scheduler-panel-container">
             <h3 className="scheduler-header">📅 Automation Schedule</h3>
             
-            {/* Notification Area (Replaces alerts) */}
-            {message.text && (
-                <div 
-                    className="notification-message" 
-                    style={{ 
-                        backgroundColor: message.type === 'error' ? '#fadbd8' : '#d5f5e3',
-                        color: message.type === 'error' ? '#c0392b' : '#27ae60' 
-                    }}
-                >
-                    {message.text}
-                </div>
-            )}
-
             {/* Add Task Form */}
             <form onSubmit={handleCreate} className="scheduler-form">
                 <select 

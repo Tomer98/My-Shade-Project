@@ -5,17 +5,15 @@ import SensorMap from './SensorMap';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
 import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './RoomDashboard.css';
-
-// TODO: In production, move to .env file
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * RoomDashboard Component
  * Represents the detailed control panel for a specific area/room.
  * Allows users to view real-time data, control shades manually/automatically, 
  * run weather simulations, and view historical sensor data.
- * * @param {Object} props.selectedArea - Data of the specific room being viewed.
+ * @param {Object} props.selectedArea - Data of the specific room being viewed.
  * @param {Object} props.user - The currently authenticated user object.
  * @param {Function} props.onBack - Callback to return to the main map view.
  * @param {Function} props.onUpdate - Callback to refresh parent component state.
@@ -47,7 +45,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // Simulation Data
     const [simTemp, setSimTemp] = useState(25);
-    const [simLight, setSimLight] = useState(5000);
+    const [simLight, setSimLight] = useState(40000);
     const [simCondition, setSimCondition] = useState('Clear');
 
     // Refs
@@ -62,9 +60,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
         if (selectedArea.is_simulation) {
             setDisplayTemp(selectedArea.sim_temp ?? 25);
-            setDisplayLight(selectedArea.sim_light ?? 5000);
+            setDisplayLight(selectedArea.sim_light ?? 40000);
             setSimTemp(selectedArea.sim_temp ?? 25);
-            setSimLight(selectedArea.sim_light ?? 5000);
+            setSimLight(selectedArea.sim_light ?? 40000);
         } else {
             if (selectedArea.last_temperature !== undefined) {
                 setDisplayTemp(selectedArea.last_temperature);
@@ -193,12 +191,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
      */
     const handleSimulationUpdate = async () => {
         try {
-            await axios.post(`${API_BASE_URL}/sensors/update-sim`, {
-                id: selectedArea.id,
+           await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
                 isActive: true,
-                temp: simTemp,
+                temperature: simTemp,
                 light: simLight,
-                weather_condition: simCondition 
+                weather_condition: simCondition
             }, getAuthHeader());
             
             showNotification(`Simulated data injected!`, "info");
@@ -260,13 +257,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    const getRoomImageSrc = () => {
-        const path = selectedArea.map_file_path || selectedArea.map_image;
-        if (!path) return null;
-        return path;
-    };
-
-
     // --- RENDER ---
     return (
         <div className="room-dashboard-container">
@@ -304,7 +294,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 
                 {/* Visual Map Component */}
                 <SensorMap 
-                    imageSrc={getRoomImageSrc()}
+                    imageSrc={selectedArea.map_file_path || selectedArea.map_image || null}
                     roomName={roomName}
                     sensors={sensors}
                     setSensors={setSensors}
@@ -379,16 +369,16 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                             
                             <div className="sim-slider">
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <label>Light: {simLight / 100}%</label>
-                                    <small style={{color:'#7f8c8d'}}>({simLight} lx)</small>
+                                    <label>Light: {simLight.toLocaleString()} lx</label>
+                                    <small style={{color:'#7f8c8d'}}>{Math.round(simLight / 800)}% of max</small>
                                 </div>
-                                <input 
-                                    type="range" min="0" max="100" step="1" 
-                                    value={simLight / 100} 
+                                <input
+                                    type="range" min="0" max="100" step="1"
+                                    value={Math.round(simLight / 800)}
                                     onChange={(e) => {
                                         const percent = parseInt(e.target.value);
-                                        setSimLight(percent * 100); 
-                                    }} 
+                                        setSimLight(percent * 800);
+                                    }}
                                     style={{width:'100%'}}
                                 />
                             </div>
