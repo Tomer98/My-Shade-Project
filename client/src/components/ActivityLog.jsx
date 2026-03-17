@@ -64,7 +64,7 @@ const ActivityLog = ({ logs = [] }) => {
                     logs.map((log) => {
                         const { icon, text, color, bg } = getLogDisplayData(log);
                         // Fallback to randomUUID if no ID is provided by the DB to avoid React list key warnings
-                        const uniqueKey = log.id || crypto.randomUUID(); 
+                        const uniqueKey = log.id ?? `${log.room}-${log.action_type}-${log.recorded_at}`;
                         
                         return (
                             <div key={uniqueKey} className="log-item" style={{ backgroundColor: bg || 'transparent' }}>
