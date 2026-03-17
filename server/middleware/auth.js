@@ -28,7 +28,6 @@ const verifyToken = (req, res, next) => {
         req.user = decoded;
 
     } catch (err) {
-        console.log("⚠️ Token Error:", err.message);
         return res.status(401).json({ success: false, message: "Invalid or expired Token" });
     }
     
@@ -50,7 +49,6 @@ const checkRole = (allowedRoles) => {
         const userRole = req.user.role || 'user';
         
         if (!allowedRoles.includes(userRole)) {
-            console.log(`⛔ Access denied. User role: ${userRole}, Required: ${allowedRoles}`);
             return res.status(403).json({ success: false, message: "Access denied: Insufficient permissions" });
         }
         

@@ -45,8 +45,6 @@ exports.login = async (req, res) => {
 
         const { password: _, ...userWithoutPassword } = user;
 
-        console.log(`🔑 User authenticated: ${username} (${user.role})`);
-
         return res.json({
             success: true,
             token,
