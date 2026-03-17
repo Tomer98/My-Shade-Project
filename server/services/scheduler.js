@@ -30,7 +30,7 @@ const initScheduler = (io) => {
             const globalCondition = realWeather.condition || 'Clear';
             
             // Calculate what the algorithm "thinks" globally right now
-            const globalDecision = calculateShadeAction(realWeather.temp, realWeather.light, globalCondition, false);
+            const globalDecision = calculateShadeAction(realWeather.temp, realWeather.light, globalCondition);
 
             // Log global weather to DB WITH the actual algorithm score and reasoning
             await db.query(
@@ -58,23 +58,21 @@ const initScheduler = (io) => {
                 // Skip if area is in MANUAL mode or has a recent manual override
                 if (area.shade_state === 'MANUAL' || area.last_manual_change) continue;
 
-                let currentTemp, currentLight, currentCondition, isSimulated;
+                let currentTemp, currentLight, currentCondition;
 
                 // --- Data Source Selection ---
                 if (area.is_simulation) {
                     currentTemp = area.sim_temp;
                     currentLight = area.sim_light;
                     currentCondition = area.weather_condition || 'Clear'; 
-                    isSimulated = true;
                 } else {
                     currentTemp = realWeather.temp;
                     currentLight = realWeather.light;
                     currentCondition = (currentLight < 200) ? 'Night' : (realWeather.condition || 'Sunny');
-                    isSimulated = false;
                 }
 
                 // 4. Calculate Decision
-                const decision = calculateShadeAction(currentTemp, currentLight, currentCondition, isSimulated);
+                const decision = calculateShadeAction(currentTemp, currentLight, currentCondition);
 
                 // 5. Convert score (0.0 - 1.0) to percentage (0-100)
                 let targetPosition = Math.round(decision.score * 100);
