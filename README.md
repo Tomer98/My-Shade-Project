@@ -70,7 +70,7 @@ A full issue-tracking workflow: any authenticated user can report a problem (sel
 Admins and maintenance users can create time-based rules (e.g., "Close Classroom 216 at 18:00 every day"). Tasks are displayed in a sortable table with room name, time, action, and delete button. Creating a schedule also logs a NEW_SCHEDULE event to the Activity Log in real time.
 
 ### User Management
-Admin-only panel for creating and deleting system users. Supports four roles: Admin (full access), Maintenance (shade control + alert handling), Planner (view + report), User (view only). Users table displays role badges with color coding.
+Admin-only panel for creating and deleting system users. Supports three roles: Admin (full access), Maintenance (shade control + alert handling), Planner (view + report). Users table displays role badges with color coding.
 
 ### Historical Sensor Charts
 Per-room history charts powered by Recharts. Data points are color-coded by shade state at recording time (green dot = shade was open, red dot = closed, orange = partial). Custom tooltips show exact temperature and shade position on hover. Data is fetched on demand when the history modal opens.
@@ -87,6 +87,7 @@ The weather service includes three layers of fault tolerance:
 ### Security
 - **JWT authentication** — Tokens issued on login, verified on every protected route, 24-hour expiry
 - **Role-based access control** — Middleware checks user role before allowing sensitive operations
+- **Forgot/reset password** — Cryptographically random token (32 bytes), 1-hour expiry, single-use, sent via SMTP
 - **Helmet** — Sets secure HTTP headers automatically
 - **Rate limiting** — 1000 requests per minute per IP on all API routes
 - **File upload validation** — Image-only MIME type filter with 5MB size cap
@@ -139,8 +140,8 @@ cd server
 npm test
 ```
 
-Runs 17 tests across two suites:
-- **Decision Engine** (13 tests) — Extreme conditions, standard scoring, edge cases
+Runs 23 tests across two suites:
+- **Decision Engine** (19 tests) — Extreme conditions, standard scoring, stepped thresholds, edge cases
 - **Weather Service** (4 tests) — Successful calls, retry behavior, client error handling, cache fallback
 
 ## Project Structure
@@ -154,7 +155,9 @@ My-Shade-Project/
 │   │   │   ├── ActivityLog.jsx      # Real-time event sidebar (WebSocket)
 │   │   │   ├── AlertsSystem.jsx     # Issue reporting & tracking
 │   │   │   ├── CampusMap.jsx        # Interactive campus map with admin tools
-│   │   │   ├── Login.jsx            # JWT authentication form
+│   │   │   ├── ForgotPassword.jsx   # Password reset request form
+│   │   │   ├── Login.jsx            # JWT authentication form (username or email)
+│   │   │   ├── ResetPassword.jsx    # New password form (token-based)
 │   │   │   ├── RoomDashboard.jsx    # Per-room control panel & simulation
 │   │   │   ├── SchedulerPanel.jsx   # Time-based automation manager
 │   │   │   ├── SensorChart.jsx      # Historical data visualization (Recharts)
@@ -164,8 +167,11 @@ My-Shade-Project/
 │   │   ├── utils/
 │   │   │   ├── auth.js              # Shared JWT header helper
 │   │   │   └── getShadeColor.js     # Shade position → color mapping
+│   │   ├── context/
+│   │   │   └── NotificationContext.jsx  # Global toast notification state
 │   │   ├── App.jsx                  # Main application shell & state management
 │   │   ├── App.css                  # Global layout styles
+│   │   ├── config.js                # API base URL configuration
 │   │   ├── socket.js                # Shared WebSocket connection (single instance)
 │   │   └── main.jsx                 # React entry point
 │   └── package.json
@@ -192,6 +198,7 @@ My-Shade-Project/
 │   │   └── userRoutes.js            # /api/users — user management
 │   ├── services/
 │   │   ├── decisionEngine.js        # Pure scoring logic (extracted for testability)
+│   │   ├── emailService.js          # Nodemailer SMTP client for transactional email
 │   │   ├── scheduler.js             # Cron-based automation orchestrator
 │   │   └── weatherService.js        # OpenWeatherMap client (retry + backoff + cache)
 │   ├── database/
@@ -219,7 +226,7 @@ My-Shade-Project/
 
 | Table | Purpose | Key Fields |
 |---|---|---|
-| **users** | Authentication & roles | username, password, role (admin/maintenance/planner/user) |
+| **users** | Authentication & roles | username, password, email, role (admin/maintenance/planner) |
 | **areas** | Room definitions & state | room, shade_state, current_position, map_coordinates, sensor_position, simulation cache fields |
 | **logs** | Activity history | area_id, temperature, light_intensity, current_position, action_type (12 types) |
 | **weather_logs** | AI telemetry | temp, light_level, clouds, score, decision, reason |
@@ -231,19 +238,21 @@ My-Shade-Project/
 | Method | Route | Description | Access |
 |---|---|---|---|
 | POST | /api/auth/login | Authenticate and receive JWT | Public |
+| POST | /api/auth/forgot-password | Generate and email a password reset link | Public |
+| POST | /api/auth/reset-password | Validate token and set new password | Public |
 | GET | /api/areas | Get all rooms with state | Authenticated |
 | POST | /api/areas | Create a new room (with optional image) | Admin |
 | PUT | /api/areas/:id/state | Manual shade control | Authenticated |
+| PUT | /api/areas/global/state | Set entire campus to AUTO/OPEN/CLOSED | Admin/Maintenance |
 | PUT | /api/areas/:id/map-coordinates | Update pin position on map | Admin |
 | PUT | /api/areas/:id/sensor-positions | Update sensor layout | Admin |
 | PUT | /api/areas/:id/simulation | Update simulation parameters | Authenticated |
 | POST | /api/areas/:id/image | Upload room layout image | Admin |
 | DELETE | /api/areas/:id | Delete a room and related data | Admin |
-| POST | /api/sensors | Ingest raw sensor data | Public (IoT hardware) |
+| POST | /api/sensors | Ingest raw sensor data | Authenticated |
 | GET | /api/sensors/latest | Latest global algorithm metrics | Authenticated |
 | GET | /api/sensors/logs | Global activity log (last 10) | Authenticated |
 | GET | /api/sensors/history/:id | Room sensor history (last 20) | Authenticated |
-| POST | /api/sensors/update-sim | Inject simulation data | Authenticated |
 | GET | /api/alerts | List all alerts with details | Authenticated |
 | POST | /api/alerts | Report an issue | Authenticated |
 | PUT | /api/alerts/:id | Update status / assign staff | Admin/Maintenance |
@@ -268,12 +277,8 @@ The current architecture handles a single-campus deployment. To scale further:
 
 ## Future Improvements
 
-- BCrypt password hashing (currently plaintext for development speed)
-- Toast/notification system replacing window.alert() calls
 - CI/CD pipeline (GitHub Actions → Docker Hub → cloud deployment)
 - Integration tests covering full API request flows
 - Mobile-responsive CSS layout
 - Historical analytics dashboard with weekly/monthly trend aggregation
-- Email/push notifications for critical alerts
-- Schedule execution engine (currently schedules are logged but not auto-executed)
 - Multi-campus support with campus selection UI
