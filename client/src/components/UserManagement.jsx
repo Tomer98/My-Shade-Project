@@ -126,6 +126,7 @@ const UserManagement = () => {
             </div>
             
             {loading ? <p>Loading users...</p> : (
+                <div className="users-table-wrapper">
                 <table className="users-table">
                     <thead>
                         <tr>
@@ -154,6 +155,7 @@ const UserManagement = () => {
                         ))}
                     </tbody>
                 </table>
+                </div>
             )}
         </div>
     );

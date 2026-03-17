@@ -2,9 +2,14 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  
+
   /* Set text direction to left-to-right for English UI */
-  direction: ltr; 
+  direction: ltr;
+}
+
+html {
+  /* Scales root font from 14px (small screens) to 20px (large displays) */
+  font-size: clamp(14px, 1.1vw, 20px);
 }
 
 body {

@@ -105,7 +105,6 @@ exports.getCurrentWeather = async () => {
 
             if (!isLastAttempt) {
                 const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
-                console.log(`   ⏳ Retrying in ${delay}ms...`);
                 await sleep(delay);
             }
         }
