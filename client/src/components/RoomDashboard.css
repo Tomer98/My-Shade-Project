@@ -2,32 +2,35 @@
 
 /* 1. קונטיינר ראשי - תופס מסך מלא */
 .room-dashboard-container {
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden; 
+    overflow: hidden;
     background-color: #f4f7f6;
 }
 
 /* 2. כותרת */
 .room-dashboard-header {
-    height: 60px;
-    padding: 0 20px;
+    min-height: 60px;
+    padding: clamp(6px, 1vw, 10px) clamp(10px, 2vw, 20px);
     background-color: white;
     border-bottom: 1px solid #ddd;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     flex-shrink: 0;
 }
 .room-dashboard-header h2 { margin: 0; font-size: 1.25rem; color: #333; }
 
 /* 3. החלוקה הראשית - Flexbox (מפה באמצע, תפריט בימין) */
 .dashboard-grid {
-    display: flex;       
-    flex-direction: row; 
-    flex: 1;             /* תופס את שאר הגובה */
-    overflow: hidden;    
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 0 0 12px 12px; /* Match parent container's bottom border-radius */
 }
 
 /* === צד שמאל/מרכז: המפה === */
@@ -62,15 +65,16 @@
 
 /* === צד ימין: התפריט === */
 .controls-sidebar {
-    width: 320px;         /* רוחב קבוע */
-    min-width: 320px;     
+    width: clamp(240px, 22vw, 340px);
+    min-width: 0;
+    box-sizing: border-box;
     background-color: white;
     border-left: 1px solid #e0e0e0;
-    padding: 20px;
+    padding: clamp(12px, 1.5vw, 20px);
     display: flex;
     flex-direction: column;
     gap: 15px;
-    overflow-y: auto;     /* גלילה רק בתפריט אם צריך */
+    overflow-y: auto;
     box-shadow: -2px 0 10px rgba(0,0,0,0.02);
     z-index: 10;
 }
@@ -154,10 +158,12 @@
     background-color: rgba(255,255,255,0.95);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    display: flex; 
-    flex-direction: row; /* Horizontal Stack */
-    gap: 8px; 
-    padding: 8px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: calc(100% - 30px);
+    gap: clamp(4px, 0.6vw, 8px);
+    padding: clamp(5px, 0.8vw, 8px);
 }
 .floating-toolbar button {
     background: white; border: 1px solid #ddd; padding: 6px 10px; cursor: pointer; border-radius: 4px;
@@ -184,9 +190,9 @@
 
 /* חיישנים */
 .sensor-badge {
-    position: absolute; 
-    width: 40px;
-    height: 40px;
+    position: absolute;
+    width: clamp(27px, 3.5vw, 62px);
+    height: clamp(27px, 3.5vw, 62px);
     border-radius: 50%;
     
     /* עיצוב סונאר שקוף */
@@ -200,9 +206,9 @@
     justify-content: center; 
     align-items: center;
     
-    font-size: 0.8rem; 
-    color: white; 
-    font-weight: 700; 
+    font-size: clamp(0.52rem, 1vw, 0.95rem);
+    color: white;
+    font-weight: 700;
     text-shadow: 0 0 3px rgba(0,0,0,0.8);
     
     cursor: pointer; 
@@ -218,7 +224,8 @@
     transform: translate(-50%, -50%);
     width: 100%; height: 100%;
     border-radius: 50%;
-    border: 1px solid inherit; /* לוקח את צבע הגבול מההורה */
+    border: 1px solid transparent;
+    border-color: inherit;
     opacity: 0;
     animation: sonarPulse 2.5s infinite ease-out; /* פעימה איטית יותר */
     z-index: -1;
@@ -252,7 +259,7 @@
 }
 .graph-content {
     background-color: white; padding: 20px; border-radius: 12px;
-    width: 80vw; max-width: 900px; height: 60vh; position: relative;
+    width: clamp(300px, 80vw, 900px); height: clamp(300px, 60vh, 700px); position: relative;
     display: flex; flex-direction: column;
 }
 .close-btn {
@@ -261,4 +268,24 @@
 .image-placeholder {
     width: 90%; height: 90%; display: flex; justify-content: center; align-items: center;
     background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 12px; color: #6c757d; font-size: 1.2rem;
+}
+
+/* Stack map above controls when viewport is too narrow to fit both side by side */
+@media (max-width: 700px) {
+    .dashboard-grid {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .map-panel {
+        flex-shrink: 0;
+        min-height: 40vh;
+        max-height: 55vh;
+    }
+    .controls-sidebar {
+        flex-shrink: 0;
+        width: 100%;
+        min-height: auto;
+        border-left: none;
+        border-top: 1px solid #e0e0e0;
+    }
 }

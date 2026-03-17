@@ -41,8 +41,13 @@
     background-color: #45a049;
 }
 
+.users-table-wrapper {
+    overflow-x: auto;
+}
+
 .users-table {
     width: 100%;
+    min-width: 400px;
     border-collapse: collapse;
     background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);

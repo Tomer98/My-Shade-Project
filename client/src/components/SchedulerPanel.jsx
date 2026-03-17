@@ -106,6 +106,7 @@ const SchedulerPanel = () => {
             </form>
 
             {/* Tasks Table */}
+            <div className="scheduler-table-wrapper">
             <table className="scheduler-table">
                 <thead>
                     <tr>
@@ -139,6 +140,7 @@ const SchedulerPanel = () => {
                     )}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 };

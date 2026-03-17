@@ -10,8 +10,6 @@ const fs = require('fs');
 // Docker compatibility: Using process.cwd() ensures we target the root server directory
 const uploadDir = path.join(process.cwd(), 'uploads');
 
-console.log(`📂 Upload middleware initialized. Directory: ${uploadDir}`);
-
 // Ensure the 'uploads' directory exists before accepting files
 if (!fs.existsSync(uploadDir)) {
     try {
