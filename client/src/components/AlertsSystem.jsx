@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { API_BASE_URL } from '../config';
 import './AlertsSystem.css';
-
-// TODO: In production, move to .env file
-const API_URL = 'http://localhost:3001/api';
 
 /**
  * Visual helper for alert priority styling
@@ -47,7 +45,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
 
         try {
-            const res = await axios.get(`${API_URL}/alerts`, config);
+            const res = await axios.get(`${API_BASE_URL}/alerts`, config);
             if (res.data.success) setAlerts(res.data.data);
         } catch (err) {
             console.error("Error loading alerts:", err);
@@ -66,7 +64,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
 
         try {
-            const res = await axios.get(`${API_URL}/users`, config);
+            const res = await axios.get(`${API_BASE_URL}/users`, config);
             if (res.data.success) {
                 // Filter users to only include those who can handle alerts
                 const staff = res.data.data.filter(u => u.role === 'maintenance' || u.role === 'admin');
@@ -102,7 +100,7 @@ const AlertsSystem = ({ user, areas }) => {
         
         try {
             await axios.post(
-                `${API_URL}/alerts`, 
+                `${API_BASE_URL}/alerts`, 
                 { ...newAlert, created_by: user.id }, 
                 config
             );
@@ -121,7 +119,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
         
         try {
-            await axios.put(`${API_URL}/alerts/${alertId}`, updates, config);
+            await axios.put(`${API_BASE_URL}/alerts/${alertId}`, updates, config);
             showNotification('Alert updated successfully.', 'success');
             fetchAlerts();
         } catch (err) { 
@@ -136,7 +134,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
         
         try {
-            await axios.delete(`${API_URL}/alerts/${alertId}`, config);
+            await axios.delete(`${API_BASE_URL}/alerts/${alertId}`, config);
             showNotification('Alert deleted.', 'success');
             fetchAlerts();
         } catch (err) { 

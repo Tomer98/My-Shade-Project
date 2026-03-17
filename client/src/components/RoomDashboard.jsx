@@ -5,10 +5,8 @@ import SensorMap from './SensorMap';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
 import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './RoomDashboard.css';
-
-// TODO: In production, move to .env file
-const API_BASE_URL = 'http://localhost:3001/api';
 
 /**
  * RoomDashboard Component

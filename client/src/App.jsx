@@ -10,11 +10,9 @@ import SmartDashboard from './components/SmartDashboard';
 import SchedulerPanel from './components/SchedulerPanel';
 import ActivityLog from './components/ActivityLog';
 import { getAuthHeader } from './utils/auth';
+import { API_BASE_URL } from './config';
 import { socket } from './socket'; 
 import './App.css';
-
-// --- Constants ---
-const API_BASE_URL = 'http://localhost:3001/api'; 
 
 function App() {
     // --- State Management ---
