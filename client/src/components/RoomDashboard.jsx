@@ -191,12 +191,11 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
      */
     const handleSimulationUpdate = async () => {
         try {
-            await axios.post(`${API_BASE_URL}/sensors/update-sim`, {
-                id: selectedArea.id,
+           await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/simulation`, {
                 isActive: true,
-                temp: simTemp,
+                temperature: simTemp,
                 light: simLight,
-                weather_condition: simCondition 
+                weather_condition: simCondition
             }, getAuthHeader());
             
             showNotification(`Simulated data injected!`, "info");

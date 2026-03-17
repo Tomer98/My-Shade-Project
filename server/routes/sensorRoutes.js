@@ -31,13 +31,6 @@ router.get('/logs', verifyToken, sensorController.getGlobalLogs);
 router.get('/history/:areaId', verifyToken, sensorController.getHistoryByArea);
 
 /**
- * @route   POST /update-sim
- * @desc    Inject simulated temp, light, and weather data into an area
- * @access  Private (All authenticated users)
- */
-router.post('/update-sim', verifyToken, sensorController.updateAreaSensors); 
-
-/**
  * @route   POST /
  * @desc    Add raw sensor data (Typically called by physical IoT hardware)
  * @access  Public (Open for hardware integration / API Key checking can be added)
