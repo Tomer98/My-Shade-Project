@@ -3,13 +3,12 @@ import axios from 'axios';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
 import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './CampusMap.css';
-
-const API_BASE_URL = 'http://localhost:3001';
 
 /**
  * Parses a coordinate value (string or number) into a clean percentage number.
- * * @param {string|number} val - The coordinate value to parse.
+ * @param {string|number} val - The coordinate value to parse.
  * @returns {number} The parsed percentage value.
  */
 const parseCoord = (val) => {
@@ -21,7 +20,7 @@ const parseCoord = (val) => {
 /**
  * Extracts and parses top/left coordinates from an area object.
  * Handles potential double-stringified JSON from the database.
- * * @param {Object} area - The area object containing coordinate data.
+ * @param {Object} area - The area object containing coordinate data.
  * @returns {Object} An object with { top, left } properties.
  */
 const getCoords = (area) => {
@@ -43,9 +42,9 @@ const getCoords = (area) => {
 
 /**
  * CampusMap Component
- * * Renders an interactive map with draggable pins representing different rooms.
+ * Renders an interactive map with draggable pins representing different rooms.
  * Provides administrative tools to add, move, and delete pins.
- * * @component
+ * @component
  * @param {Object} props
  * @param {Array} props.areas - List of area objects to display on the map.
  * @param {Function} props.onSelectArea - Callback when a room pin is clicked.
@@ -125,7 +124,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             try {
                 const finalPos = dragPositionRef.current;
                 
-                await axios.put(`${API_BASE_URL}/api/areas/${draggingId}/map-coordinates`, {
+                await axios.put(`${API_BASE_URL}/areas/${draggingId}/map-coordinates`, {
                     map_coordinates: JSON.stringify(finalPos)
                 }, getAuthHeader());
                 
@@ -165,7 +164,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 formData.append('map_coordinates', JSON.stringify({ top, left }));
                 
                 const authConfig = getAuthHeader();
-                await axios.post(`${API_BASE_URL}/api/areas`, formData, {
+                await axios.post(`${API_BASE_URL}/areas`, formData, {
                     headers: { 
                         'Content-Type': 'multipart/form-data',
                         ...authConfig?.headers 
@@ -190,7 +189,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
-                await axios.delete(`${API_BASE_URL}/api/areas/${areaToDelete.id}`, getAuthHeader());
+                await axios.delete(`${API_BASE_URL}/areas/${areaToDelete.id}`, getAuthHeader());
                 onUpdateAreas();
                 showNotification("Room deleted", "success");
             } catch (error) {

@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const areaController = require('../controllers/areaController'); 
 const upload = require('../middleware/upload'); 
-const { verifyToken, checkRole } = require('../middleware/auth'); // הוספנו אבטחה!
+const { verifyToken, checkRole } = require('../middleware/auth');
 
 /**
  * @route   GET /
@@ -57,7 +57,6 @@ router.put('/:id/state', verifyToken, areaController.updateAreaState);
  * @desc    Update real-time simulation parameters (temp, light) for an area
  * @access  Private (All authenticated users)
  */
-// תיקון: שונה מ-POST ל-PUT כדי להתאים ל-Axios ב-React
 router.put('/:id/simulation', verifyToken, areaController.updateAreaSimulation);
 
 /**

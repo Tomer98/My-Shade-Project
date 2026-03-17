@@ -30,7 +30,7 @@ const getLogDisplayData = (log) => {
         default:
             // Fallbacks for generic or unknown log types based on logical conditions
             if (log.temperature > 30) return { icon: '🔥', text: `Extreme heat (${log.temperature}°C)`, color: '#e74c3c' };
-            if (log.light_intensity > 1000) return { icon: '😎', text: `High glare (${log.light_intensity}%)`, color: '#e67e22' };
+            if (log.light_intensity > 40000) return { icon: '😎', text: `High glare (${Math.round(log.light_intensity / 800)}%)`, color: '#e67e22' };
             if (log.current_position > 0) return { icon: '🔒', text: `Closed ${log.current_position}%`, color: '#7f8c8d' };
             return { icon: '✅', text: 'Opened', color: '#2ecc71' };
     }
@@ -64,7 +64,7 @@ const ActivityLog = ({ logs = [] }) => {
                     logs.map((log) => {
                         const { icon, text, color, bg } = getLogDisplayData(log);
                         // Fallback to randomUUID if no ID is provided by the DB to avoid React list key warnings
-                        const uniqueKey = log.id || crypto.randomUUID(); 
+                        const uniqueKey = log.id ?? `${log.room}-${log.action_type}-${log.recorded_at}`;
                         
                         return (
                             <div key={uniqueKey} className="log-item" style={{ backgroundColor: bg || 'transparent' }}>

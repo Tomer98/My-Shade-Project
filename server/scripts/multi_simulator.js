@@ -4,7 +4,7 @@
  * This script acts as mock IoT hardware. It generates random weather scenarios
  * (Summer, Winter, Glare, Neutral) for multiple rooms simultaneously and sends
  * the raw data to the server's public sensor endpoint.
- * * Usage: Run this script in a separate terminal to demo the smart automation.
+ * Usage: Run this script in a separate terminal to demo the smart automation.
  * Command: node scripts/multi_simulator.js
  */
 const axios = require('axios');

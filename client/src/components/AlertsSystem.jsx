@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { useNotification } from '../context/NotificationContext';
+import { API_BASE_URL } from '../config';
 import './AlertsSystem.css';
-
-// TODO: In production, move to .env file
-const API_URL = 'http://localhost:3001/api';
 
 /**
  * Visual helper for alert priority styling
@@ -30,24 +29,18 @@ const getStatusClass = (status) => {
  * Features role-based access: Admins can assign/delete, Maintenance can resolve.
  */
 const AlertsSystem = ({ user, areas }) => {
+    const showNotification = useNotification();
     const [alerts, setAlerts] = useState([]);
     const [maintenanceUsers, setMaintenanceUsers] = useState([]);
     const [newAlert, setNewAlert] = useState({ area_id: '', description: '', priority: 'Medium' });
-    const [message, setMessage] = useState({ text: '', type: '' });
     const [loading, setLoading] = useState(true);
-
-    // --- Helper function to unify how we show messages to the user ---
-    const showNotification = (text, type) => {
-        setMessage({ text, type });
-        setTimeout(() => setMessage({ text: '', type: '' }), 4000);
-    };
 
     const fetchAlerts = async () => {
         const config = getAuthHeader();
         if (!config) return;
 
         try {
-            const res = await axios.get(`${API_URL}/alerts`, config);
+            const res = await axios.get(`${API_BASE_URL}/alerts`, config);
             if (res.data.success) setAlerts(res.data.data);
         } catch (err) {
             console.error("Error loading alerts:", err);
@@ -66,7 +59,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
 
         try {
-            const res = await axios.get(`${API_URL}/users`, config);
+            const res = await axios.get(`${API_BASE_URL}/users`, config);
             if (res.data.success) {
                 // Filter users to only include those who can handle alerts
                 const staff = res.data.data.filter(u => u.role === 'maintenance' || u.role === 'admin');
@@ -102,7 +95,7 @@ const AlertsSystem = ({ user, areas }) => {
         
         try {
             await axios.post(
-                `${API_URL}/alerts`, 
+                `${API_BASE_URL}/alerts`, 
                 { ...newAlert, created_by: user.id }, 
                 config
             );
@@ -121,7 +114,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
         
         try {
-            await axios.put(`${API_URL}/alerts/${alertId}`, updates, config);
+            await axios.put(`${API_BASE_URL}/alerts/${alertId}`, updates, config);
             showNotification('Alert updated successfully.', 'success');
             fetchAlerts();
         } catch (err) { 
@@ -136,7 +129,7 @@ const AlertsSystem = ({ user, areas }) => {
         if (!config) return;
         
         try {
-            await axios.delete(`${API_URL}/alerts/${alertId}`, config);
+            await axios.delete(`${API_BASE_URL}/alerts/${alertId}`, config);
             showNotification('Alert deleted.', 'success');
             fetchAlerts();
         } catch (err) { 
@@ -172,12 +165,6 @@ const AlertsSystem = ({ user, areas }) => {
                     </div>
                     <button type="submit">Submit Report</button>
                 </form>
-                {/* Unified Notification Display */}
-                {message.text && (
-                    <p style={{ color: message.type === 'error' ? 'red' : 'green' }} className="form-message">
-                        {message.text}
-                    </p>
-                )}
             </div>
 
             {/* Alerts List Section */}

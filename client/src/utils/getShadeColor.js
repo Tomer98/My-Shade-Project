@@ -8,6 +8,6 @@ export const getShadeColor = (position) => {
     const pos = parseInt(position, 10) || 0;
     
     if (pos < 30) return '#2ecc71'; // Green (Mostly Open)
-    if (pos >= 30 && pos < 70) return '#f39c12'; // Orange (Partially Closed)
+    if (pos < 70) return '#f39c12'; // Orange (Partially Closed)
     return '#e74c3c'; // Red (Mostly Closed)
 };
