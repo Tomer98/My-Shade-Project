@@ -13,7 +13,7 @@ import './RoomDashboard.css';
  * Represents the detailed control panel for a specific area/room.
  * Allows users to view real-time data, control shades manually/automatically, 
  * run weather simulations, and view historical sensor data.
- * * @param {Object} props.selectedArea - Data of the specific room being viewed.
+ * @param {Object} props.selectedArea - Data of the specific room being viewed.
  * @param {Object} props.user - The currently authenticated user object.
  * @param {Function} props.onBack - Callback to return to the main map view.
  * @param {Function} props.onUpdate - Callback to refresh parent component state.
@@ -257,13 +257,6 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
         }
     };
 
-    const getRoomImageSrc = () => {
-        const path = selectedArea.map_file_path || selectedArea.map_image;
-        if (!path) return null;
-        return path;
-    };
-
-
     // --- RENDER ---
     return (
         <div className="room-dashboard-container">
@@ -301,7 +294,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                 
                 {/* Visual Map Component */}
                 <SensorMap 
-                    imageSrc={getRoomImageSrc()}
+                    imageSrc={selectedArea.map_file_path || selectedArea.map_image || null}
                     roomName={roomName}
                     sensors={sensors}
                     setSensors={setSensors}

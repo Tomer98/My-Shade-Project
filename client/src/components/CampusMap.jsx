@@ -8,7 +8,7 @@ import './CampusMap.css';
 
 /**
  * Parses a coordinate value (string or number) into a clean percentage number.
- * * @param {string|number} val - The coordinate value to parse.
+ * @param {string|number} val - The coordinate value to parse.
  * @returns {number} The parsed percentage value.
  */
 const parseCoord = (val) => {
@@ -20,7 +20,7 @@ const parseCoord = (val) => {
 /**
  * Extracts and parses top/left coordinates from an area object.
  * Handles potential double-stringified JSON from the database.
- * * @param {Object} area - The area object containing coordinate data.
+ * @param {Object} area - The area object containing coordinate data.
  * @returns {Object} An object with { top, left } properties.
  */
 const getCoords = (area) => {
@@ -42,9 +42,9 @@ const getCoords = (area) => {
 
 /**
  * CampusMap Component
- * * Renders an interactive map with draggable pins representing different rooms.
+ * Renders an interactive map with draggable pins representing different rooms.
  * Provides administrative tools to add, move, and delete pins.
- * * @component
+ * @component
  * @param {Object} props
  * @param {Array} props.areas - List of area objects to display on the map.
  * @param {Function} props.onSelectArea - Callback when a room pin is clicked.
