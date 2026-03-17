@@ -47,6 +47,7 @@ exports.createUser = async (req, res) => {
 
 /**
  * Delete a user by ID.
+ * @param {string} req.params.id - The unique ID of the user to delete.
  */
 exports.deleteUser = async (req, res) => {
     const { id } = req.params;
