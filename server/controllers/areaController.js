@@ -59,7 +59,7 @@ exports.createArea = async (req, res) => {
         if (typeof coordsToSave === 'object') coordsToSave = JSON.stringify(coordsToSave);
         
         // Default sensor layout
-        const initialSensor = JSON.stringify([{ top: '50%', left: '50%', size: '50px' }]);
+        const initialSensor = JSON.stringify([{ id: 'default-1', x: 50, y: 50 }]);
         
         const sql = `
             INSERT INTO areas (room, description, map_file_path, map_coordinates, sensor_position, shade_state, current_position) 
