@@ -46,6 +46,7 @@ services:
       - DB_USER=root
       - DB_PASSWORD=password123
       - DB_NAME=shade_system_test
+      - TZ=Asia/Jerusalem
       - CORS_ORIGINS=http://localhost:5173
     
     # --- Live Sync & Persistence ---
