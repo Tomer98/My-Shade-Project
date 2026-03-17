@@ -8,7 +8,7 @@ import './Login.css';
  * Handles user authentication, capturing username and password, 
  * and passing the authenticated user data (including token) back to the parent.
  */
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onForgotPassword }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -59,6 +59,13 @@ const Login = ({ onLogin }) => {
                         required
                     />
                     <button type="submit">Login</button>
+                    <button
+                        type="button"
+                        onClick={onForgotPassword}
+                        style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', marginTop: '0.5rem', fontSize: '0.85rem' }}
+                    >
+                        Forgot password?
+                    </button>
                 </form>
                 {/* Error message display, styles are managed in Login.css */}
                 {error && <div className="login-error">{error}</div>}

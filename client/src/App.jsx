@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import { NotificationProvider } from './context/NotificationContext';
 import RoomDashboard from './components/RoomDashboard';
 import CampusMap from './components/CampusMap';
@@ -25,6 +27,8 @@ function App() {
     const [showUserManagement, setShowUserManagement] = useState(false); 
     const [showAlerts, setShowAlerts] = useState(false); 
     const [showSmartDash, setShowSmartDash] = useState(true); 
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [resetToken, setResetToken] = useState(null);
 
     // --- Data Fetching ---
     const loadAreas = async () => {
@@ -62,7 +66,18 @@ function App() {
         }
     }, []);
 
-    // 2. Fetch Initial Data after Login
+    // 2. Check URL for password reset token on first load
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        if (token) {
+            setResetToken(token);
+            // Clean the token from the URL bar without reloading the page
+            window.history.replaceState({}, '', '/');
+        }
+    }, []);
+
+    // 3. Fetch Initial Data after Login
     useEffect(() => {
         if (user) {
             loadAreas();
@@ -70,7 +85,7 @@ function App() {
         }
     }, [user]);
 
-    // 3. Socket.io Integration
+    // 4. Socket.io Integration
     useEffect(() => {
         socket.on("connect", () => console.log("🟢 WebSocket Connected! ID:", socket.id));
         socket.on("disconnect", () => console.log("🔴 WebSocket Disconnected"));
@@ -91,7 +106,7 @@ function App() {
         };
     }, [user]);
 
-    // 4. Sync Selected Area Data
+    // 5. Sync Selected Area Data
     useEffect(() => {
         if (selectedArea && areas.length > 0) {
             const updatedArea = areas.find(a => a.id === selectedArea.id);
@@ -136,7 +151,9 @@ function App() {
 
     // --- Render ---
     
-    if (!user) return <Login onLogin={handleLoginSuccess} />;
+    if (resetToken) return <ResetPassword token={resetToken} onBack={() => setResetToken(null)} />;
+    if (!user && showForgotPassword) return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+    if (!user) return <Login onLogin={handleLoginSuccess} onForgotPassword={() => setShowForgotPassword(true)} />;
 
     return (
         <NotificationProvider>
