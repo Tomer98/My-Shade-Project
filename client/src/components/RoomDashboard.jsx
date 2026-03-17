@@ -45,7 +45,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // Simulation Data
     const [simTemp, setSimTemp] = useState(25);
-    const [simLight, setSimLight] = useState(5000);
+    const [simLight, setSimLight] = useState(40000);
     const [simCondition, setSimCondition] = useState('Clear');
 
     // Refs
@@ -60,9 +60,9 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
         if (selectedArea.is_simulation) {
             setDisplayTemp(selectedArea.sim_temp ?? 25);
-            setDisplayLight(selectedArea.sim_light ?? 5000);
+            setDisplayLight(selectedArea.sim_light ?? 40000);
             setSimTemp(selectedArea.sim_temp ?? 25);
-            setSimLight(selectedArea.sim_light ?? 5000);
+            setSimLight(selectedArea.sim_light ?? 40000);
         } else {
             if (selectedArea.last_temperature !== undefined) {
                 setDisplayTemp(selectedArea.last_temperature);
@@ -377,16 +377,16 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                             
                             <div className="sim-slider">
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <label>Light: {simLight / 100}%</label>
-                                    <small style={{color:'#7f8c8d'}}>({simLight} lx)</small>
+                                    <label>Light: {simLight.toLocaleString()} lx</label>
+                                    <small style={{color:'#7f8c8d'}}>{Math.round(simLight / 800)}% of max</small>
                                 </div>
-                                <input 
-                                    type="range" min="0" max="100" step="1" 
-                                    value={simLight / 100} 
+                                <input
+                                    type="range" min="0" max="100" step="1"
+                                    value={Math.round(simLight / 800)}
                                     onChange={(e) => {
                                         const percent = parseInt(e.target.value);
-                                        setSimLight(percent * 100); 
-                                    }} 
+                                        setSimLight(percent * 800);
+                                    }}
                                     style={{width:'100%'}}
                                 />
                             </div>
