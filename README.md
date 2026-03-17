@@ -24,7 +24,7 @@ The system follows a **sensor → decision → actuator** loop that runs continu
 | External API | OpenWeatherMap — with retry, exponential backoff, and cache fallback |
 | Infrastructure | Docker Compose (MySQL + Node.js containers), volume sync for development |
 | Security | Helmet (HTTP headers), express-rate-limit, JWT authentication, role-based access control (RBAC) |
-| Testing | Jest, Supertest — Decision Engine unit tests + Weather Service resilience tests |
+| Testing | Jest, Supertest — Decision Engine unit tests, Weather Service resilience tests, API integration tests (auth + RBAC) |
 
 ## Features
 
@@ -144,9 +144,10 @@ cd server
 npm test
 ```
 
-Runs 23 tests across two suites:
+Runs 38 tests across three suites:
 - **Decision Engine** (19 tests) — Extreme conditions, standard scoring, stepped thresholds, edge cases
 - **Weather Service** (4 tests) — Successful calls, retry behavior, client error handling, cache fallback
+- **API Integration** (15 tests) — Login flow, unauthenticated rejection, RBAC (what maintenance can and cannot do, admin full access)
 
 ## Project Structure
 
@@ -208,8 +209,9 @@ My-Shade-Project/
 │   ├── database/
 │   │   └── schema.sql               # Full database schema (6 tables, seed data)
 │   ├── __tests__/
-│   │   ├── decisionEngine.test.js   # 19 algorithm unit tests
-│   │   └── weatherService.test.js   # 4 resilience & retry tests
+│   │   ├── decisionEngine.test.js       # 19 algorithm unit tests
+│   │   ├── weatherService.test.js       # 4 resilience & retry tests
+│   │   └── api.integration.test.js      # 15 auth & RBAC integration tests
 │   ├── uploads/                     # User-uploaded room images (Docker volume)
 │   ├── scripts/
 │   │   └── multi_simulator.js       # Multi-room IoT sensor simulator
@@ -217,7 +219,8 @@ My-Shade-Project/
 │   ├── Dockerfile                   # Node.js 18 Alpine container
 │   ├── .dockerignore
 │   ├── .env                         # Environment secrets (gitignored)
-│   ├── index.js                     # Server entry point (Express + Socket.io)
+│   ├── app.js                       # Express app config (middleware, routes, error handlers)
+│   ├── index.js                     # Server entry point (HTTP server, Socket.io, scheduler startup)
 │   └── package.json
 ├── docker-compose.yml               # MySQL + Node.js orchestration
 ├── .gitignore
@@ -280,8 +283,6 @@ The current architecture handles a single-campus deployment. To scale further:
 
 ## Future Improvements
 
-- CI/CD pipeline (GitHub Actions → Docker Hub → cloud deployment)
-- Integration tests covering full API request flows
-- Mobile-responsive CSS layout
+- Cloud deployment (Docker Hub → cloud provider)
 - Historical analytics dashboard with weekly/monthly trend aggregation
 - Multi-campus support with campus selection UI
