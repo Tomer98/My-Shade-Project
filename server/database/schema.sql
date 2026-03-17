@@ -17,8 +17,10 @@ CREATE TABLE users (
     username VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     email VARCHAR(255),
-    role ENUM('admin', 'maintenance', 'planner', 'user') DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    role ENUM('admin', 'maintenance', 'planner') DEFAULT 'planner',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reset_token VARCHAR(255) NULL,
+    reset_token_expires DATETIME NULL
 );
 
 INSERT INTO users (username, password, email, role) VALUES 
