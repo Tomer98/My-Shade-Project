@@ -258,9 +258,6 @@ exports.deleteArea = async (req, res) => {
 
 /**
  * Update real-time simulation parameters for an area.
- */
-/**
- * Update real-time simulation parameters for an area.
  * Handles temperature and light injections from the Test AI panel.
  */
 exports.updateAreaSimulation = async (req, res) => {

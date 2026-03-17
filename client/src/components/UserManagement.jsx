@@ -20,7 +20,7 @@ const getRoleClass = (role) => {
  * UserManagement Component
  * Admin dashboard for viewing, adding, and deleting system users.
  * Uses global notification system for feedback.
- * * @component
+ * @component
  */
 const UserManagement = () => {
     const showNotification = useNotification();

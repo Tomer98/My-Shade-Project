@@ -93,7 +93,7 @@ app.use('/api/alerts', alertRoutes);
 
 
 // ==========================================
-// 🚨 Fallback & Error Handling (התוספת החדשה!)
+// 🚨 Fallback & Error Handling
 // ==========================================
 
 // 404 Route Not Found Handler
@@ -123,10 +123,7 @@ app.use((err, req, res, next) => {
 
 // WebSocket Connection Handling
 io.on('connection', (socket) => {
-    // console.log(`🔌 New client connected: ${socket.id}`);
-    socket.on('disconnect', () => {
-        // console.log(`🔌 Client disconnected: ${socket.id}`)
-    });
+    socket.on('disconnect', () => {});
 });
 
 // Start listening
