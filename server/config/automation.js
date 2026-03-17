@@ -14,7 +14,7 @@ module.exports = {
     LIMITS: {
         MAX_TEMP: 35,  // At 35°C, the temperature score hits 100
         MIN_TEMP: 20,  // Below 20°C, the temperature score is 0 (pleasant)
-        MAX_LIGHT: 100 // 100% light intensity is the maximum score
+        MAX_LIGHT: 80000 // ~80,000 lux = clear sky at solar noon (solar elevation model max)
     },
 
     // Closure Thresholds (Prevents the shade from twitching on minor changes)

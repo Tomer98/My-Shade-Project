@@ -21,7 +21,7 @@ describe('Weather Service - Resilience', () => {
                 main: { temp: 28 },
                 weather: [{ main: 'Clear' }],
                 clouds: { all: 20 },
-                sys: { sunrise: 0, sunset: Date.now() / 1000 + 3600 } // 1hr from now
+                sys: { sunrise: Date.now() / 1000 - 6 * 3600, sunset: Date.now() / 1000 + 6 * 3600 } // solar noon
             }
         });
 
@@ -71,7 +71,7 @@ describe('Weather Service - Resilience', () => {
                     main: { temp: 22 },
                     weather: [{ main: 'Cloudy' }],
                     clouds: { all: 80 },
-                    sys: { sunrise: 0, sunset: Date.now() / 1000 + 3600 }
+                    sys: { sunrise: Date.now() / 1000 - 6 * 3600, sunset: Date.now() / 1000 + 6 * 3600 } // solar noon
                 }
             });
 

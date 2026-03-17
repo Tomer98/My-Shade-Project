@@ -54,7 +54,9 @@ exports.getCurrentWeather = async () => {
 
             if (now > sunrise && now < sunset) {
                 const cloudFactor = 1 - (clouds / 100);
-                light = 800 + (400 * cloudFactor);
+                const dayProgress = (now - sunrise) / (sunset - sunrise); // 0.0 at sunrise, 1.0 at sunset
+                const solarElevation = Math.sin(dayProgress * Math.PI);   // peaks at 1.0 at solar noon
+                light = Math.round(80000 * solarElevation * cloudFactor);
             }
 
             const result = { temp, light: Math.round(light), condition, clouds };

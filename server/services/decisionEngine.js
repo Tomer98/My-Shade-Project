@@ -38,7 +38,7 @@ const calculateShadeAction = (temp, light, condition) => {
     // --- 2. Standard Calculation ---
     const tempRange = config.LIMITS.MAX_TEMP - config.LIMITS.MIN_TEMP;
     const normTemp = Math.min(Math.max((temp - config.LIMITS.MIN_TEMP) / tempRange, 0), 1);
-    const normLight = Math.min(Math.max(light / 10000, 0), 1);
+    const normLight = Math.min(Math.max(light / config.LIMITS.MAX_LIGHT, 0), 1);
     const rawScore = (config.WEIGHTS.TEMP * normTemp) + (config.WEIGHTS.LIGHT * normLight);
     const score = snapToStep(rawScore);
 
