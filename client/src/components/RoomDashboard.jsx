@@ -253,7 +253,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
             showNotification('Failed to upload map image.', "error");
         } finally {
             setIsUploading(false);
-            e.target.value = null; 
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
