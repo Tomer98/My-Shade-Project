@@ -55,17 +55,36 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     const showNotification = useNotification();
     
     const [isMapEditing, setIsMapEditing] = useState(false);
-    const [editMode, setEditMode] = useState('none'); 
+    const [editMode, setEditMode] = useState('none');
     const [draggingId, setDraggingId] = useState(null);
     const [tempPosition, setTempPosition] = useState({ top: 0, left: 0 });
+    const [pendingMoves, setPendingMoves] = useState({});
     
     const mapWrapperRef = useRef(null);
     const dragPositionRef = useRef({ top: 0, left: 0 }); 
     const dragStartOffset = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
-        if (!isMapEditing) setEditMode('none');
+        if (!isMapEditing) { setEditMode('none'); setPendingMoves({}); }
     }, [isMapEditing]);
+
+    const handleSave = async () => {
+        try {
+            await Promise.all(
+                Object.entries(pendingMoves).map(([id, pos]) =>
+                    axios.put(`${API_BASE_URL}/areas/${id}/map-coordinates`, {
+                        map_coordinates: JSON.stringify(pos)
+                    }, getAuthHeader())
+                )
+            );
+            setPendingMoves({});
+            setIsMapEditing(false);
+            onUpdateAreas();
+            showNotification("Map layout saved", "success");
+        } catch (error) {
+            showNotification("Failed to save map layout", "error");
+        }
+    };
 
     /**
      * Initializes the dragging sequence for a room pin.
@@ -120,21 +139,9 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             dragPositionRef.current = newPos;
         };
 
-        const handleMouseUp = async () => {
-            try {
-                const finalPos = dragPositionRef.current;
-                
-                await axios.put(`${API_BASE_URL}/areas/${draggingId}/map-coordinates`, {
-                    map_coordinates: JSON.stringify(finalPos)
-                }, getAuthHeader());
-                
-                onUpdateAreas();
-                showNotification("Position updated successfully", "success");
-            } catch (error) {
-                console.error("Failed to save coordinates:", error);
-                showNotification("Failed to save new position", "error");
-            }
-            setDraggingId(null); 
+        const handleMouseUp = () => {
+            setPendingMoves(prev => ({ ...prev, [draggingId]: dragPositionRef.current }));
+            setDraggingId(null);
         };
 
         window.addEventListener('mousemove', handleMouseMove);
@@ -215,8 +222,8 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                             
                             <div className="toolbar-divider"></div>
                             
-                            <button className="save-btn" onClick={() => setIsMapEditing(false)}>💾 Save</button>
-                            <button className="cancel-btn" onClick={() => { setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
+                            <button className="save-btn" onClick={handleSave}>💾 Save</button>
+                            <button className="cancel-btn" onClick={() => { setPendingMoves({}); setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
                         </div>
                     )}
                 </div>
@@ -231,7 +238,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                 <img src="/campus_map.png" alt="Campus Map" className="main-map-image" />
 
                 {areas.map((area) => {
-                    const coords = area.id === draggingId ? tempPosition : getCoords(area);
+                    const coords = area.id === draggingId ? tempPosition : (pendingMoves[area.id] || getCoords(area));
                     const isDeleting = isMapEditing && editMode === 'delete';
                     const displayName = area.name || area.room || 'Room';
 
