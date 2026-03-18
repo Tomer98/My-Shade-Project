@@ -50,6 +50,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
 
     // Refs
     const fileInputRef = useRef(null);
+    const sensorsSnapshot = useRef([]);
     const roomName = selectedArea?.name || selectedArea?.room || 'Unknown Room';
 
     // --- Side Effects ---
@@ -269,7 +270,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                     {user?.role === 'admin' && (
                         !isSensorEditing ? (
                             <>
-                                <button className="header-icon-btn" onClick={() => setIsSensorEditing(true)}>✏️ Edit Sensors</button>
+                                <button className="header-icon-btn" onClick={() => { sensorsSnapshot.current = [...sensors]; setIsSensorEditing(true); }}>✏️ Edit Sensors</button>
                                 <button className="header-icon-btn" onClick={() => fileInputRef.current.click()} disabled={isUploading}>
                                     {isUploading ? 'Uploading...' : '🖼️ Upload Image'}
                                 </button>
@@ -281,7 +282,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                                     <button className={`header-icon-btn ${sensorEditMode === 'move' ? 'active' : ''}`} onClick={() => setSensorEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Sensor">✋ Move</button>
                                     <button className={`header-icon-btn ${sensorEditMode === 'delete' ? 'active' : ''}`} onClick={() => setSensorEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Sensor">🗑️ Delete</button>
                                 </div>
-                                <button className="action-btn secondary" onClick={() => { setIsSensorEditing(false); setSensorEditMode('none'); }} style={{ padding: '6px 16px', background: '#95a5a6', color: 'white' }}>✖ Cancel</button>
+                                <button className="action-btn secondary" onClick={() => { setSensors(sensorsSnapshot.current); setIsSensorEditing(false); setSensorEditMode('none'); }} style={{ padding: '6px 16px', background: '#95a5a6', color: 'white' }}>✖ Cancel</button>
                                 <button className="action-btn primary" onClick={handleSaveLayout} style={{ padding: '6px 16px' }}>{saveButtonText}</button>
                             </div>
                         )
