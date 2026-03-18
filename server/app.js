@@ -50,6 +50,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
+// 🔌 Socket.io Injection
+// ==========================================
+
+// Read io at request time (lazy) — set by index.js after server creation
+app.use((req, res, next) => {
+    req.io = app.get('io');
+    next();
+});
+
+// ==========================================
 // 🛣️ API Routes
 // ==========================================
 
