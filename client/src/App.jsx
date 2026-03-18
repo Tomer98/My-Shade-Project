@@ -95,7 +95,6 @@ function App() {
         });
 
         socket.on("new_log", (newLogEntry) => {
-            console.log("new_log received:", newLogEntry);
             setGlobalLogs(prevLogs => [newLogEntry, ...prevLogs]);
         });
 
@@ -144,7 +143,6 @@ function App() {
 
         try {
             await axios.put(`${API_BASE_URL}/areas/global/state`, { state: newState }, config);
-            loadAreas(); 
         } catch (err) { 
             console.error(err); 
         }
