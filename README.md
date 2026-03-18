@@ -22,7 +22,7 @@ The system follows a **sensor → decision → actuator** loop that runs continu
 | Backend | Node.js, Express 5, Socket.io, node-cron, JWT (jsonwebtoken), Multer, Nodemailer |
 | Database | MySQL 8.0 with connection pooling (mysql2) |
 | External API | OpenWeatherMap — with retry, exponential backoff, and cache fallback |
-| Infrastructure | Docker Compose (MySQL + Node.js containers), volume sync for development |
+| Infrastructure | Docker Compose (dev: MySQL + Node.js), AWS EC2 (server), AWS RDS (MySQL), AWS S3 (file storage), Vercel (frontend), Cloudflare Tunnel (HTTPS) |
 | Security | Helmet (HTTP headers), express-rate-limit, JWT authentication, role-based access control (RBAC) |
 | Testing | Jest, Supertest — Decision Engine unit tests, Weather Service resilience tests, API integration tests (auth + RBAC) |
 
@@ -117,14 +117,14 @@ npm run dev
 # Open: http://localhost:5173
 ```
 
-**Default login credentials:**
+**Default login credentials** (local development only — change before any public deployment):
 
-| Username | Email | Role | Password |
-|---|---|---|---|
-| Tom | bareltom33@gmail.com | Admin | password123 |
-| Alice | alice@campus.edu | Admin | password123 |
-| Bob | bob@campus.edu | Maintenance | password123 |
-| Dana | dana@campus.edu | Planner | password123 |
+| Username | Role |
+|---|---|
+| Tom | Admin |
+| Alice | Admin |
+| Bob | Maintenance |
+| Dana | Planner |
 
 ### Running the Multi-Room Simulator
 
@@ -158,25 +158,36 @@ My-Shade-Project/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── ActivityLog.jsx      # Real-time event sidebar (WebSocket)
+│   │   │   ├── ActivityLog.css
 │   │   │   ├── AlertsSystem.jsx     # Issue reporting & tracking
+│   │   │   ├── AlertsSystem.css
 │   │   │   ├── CampusMap.jsx        # Interactive campus map with admin tools
+│   │   │   ├── CampusMap.css
 │   │   │   ├── ForgotPassword.jsx   # Password reset request form
 │   │   │   ├── Login.jsx            # JWT authentication form (username or email)
+│   │   │   ├── Login.css
 │   │   │   ├── ResetPassword.jsx    # New password form (token-based)
 │   │   │   ├── RoomDashboard.jsx    # Per-room control panel & simulation
+│   │   │   ├── RoomDashboard.css
 │   │   │   ├── SchedulerPanel.jsx   # Time-based automation manager
+│   │   │   ├── SchedulerPanel.css
 │   │   │   ├── SensorChart.jsx      # Historical data visualization (Recharts)
+│   │   │   ├── SensorChart.css
 │   │   │   ├── SensorMap.jsx        # Room layout with draggable sensor badges
 │   │   │   ├── SmartDashboard.jsx   # Algorithm status ticker (WebSocket)
-│   │   │   └── UserManagement.jsx   # Admin user CRUD panel
+│   │   │   ├── SmartDashboard.css
+│   │   │   ├── UserManagement.jsx   # Admin user CRUD panel
+│   │   │   └── UserManagement.css
 │   │   ├── context/
-│   │   │   └── NotificationContext.jsx  # Global toast notification state
+│   │   │   ├── NotificationContext.jsx  # Global toast notification state
+│   │   │   └── Notification.css
 │   │   ├── utils/
 │   │   │   ├── auth.js              # Shared JWT header helper
 │   │   │   └── getShadeColor.js     # Shade position → color mapping
 │   │   ├── App.jsx                  # Main application shell & state management
 │   │   ├── App.css                  # Global layout styles
-│   │   ├── config.js                # API base URL configuration
+│   │   ├── index.css                # Base reset & root styles
+│   │   ├── config.js                # API base URL configuration (env-driven)
 │   │   ├── socket.js                # Shared WebSocket connection (single instance)
 │   │   └── main.jsx                 # React entry point
 │   └── package.json
@@ -193,7 +204,7 @@ My-Shade-Project/
 │   │   └── userController.js        # User management (admin only)
 │   ├── middleware/
 │   │   ├── auth.js                  # JWT verification + role-based access control
-│   │   └── upload.js                # Multer config (image filter, 5MB limit)
+│   │   └── upload.js                # Multer config (memory storage, image filter, 5MB limit)
 │   ├── routes/
 │   │   ├── areaRoutes.js            # /api/areas — rooms & shade control
 │   │   ├── alertRoutes.js           # /api/alerts — maintenance issues
@@ -205,6 +216,7 @@ My-Shade-Project/
 │   │   ├── decisionEngine.js        # Pure scoring logic (extracted for testability)
 │   │   ├── emailService.js          # Nodemailer SMTP client for transactional email
 │   │   ├── scheduler.js             # Cron-based automation orchestrator
+│   │   ├── storageService.js        # S3-compatible file upload (AWS S3 / R2 / MinIO)
 │   │   └── weatherService.js        # OpenWeatherMap client (retry + backoff + cache)
 │   ├── database/
 │   │   └── schema.sql               # Full database schema (6 tables, seed data)
@@ -212,7 +224,6 @@ My-Shade-Project/
 │   │   ├── decisionEngine.test.js       # 19 algorithm unit tests
 │   │   ├── weatherService.test.js       # 4 resilience & retry tests
 │   │   └── api.integration.test.js      # 15 auth & RBAC integration tests
-│   ├── uploads/                     # User-uploaded room images (Docker volume)
 │   ├── scripts/
 │   │   └── multi_simulator.js       # Multi-room IoT sensor simulator
 │   ├── test.http                    # REST Client API test suite
@@ -222,7 +233,8 @@ My-Shade-Project/
 │   ├── app.js                       # Express app config (middleware, routes, error handlers)
 │   ├── index.js                     # Server entry point (HTTP server, Socket.io, scheduler startup)
 │   └── package.json
-├── docker-compose.yml               # MySQL + Node.js orchestration
+├── docker-compose.yml               # Development: MySQL + Node.js with volume sync
+├── docker-compose.prod.yml          # Production: Node.js only (RDS + S3 replace local services)
 ├── .gitignore
 ├── .gitattributes                   # LF normalization for Docker/Linux
 └── README.md
@@ -270,6 +282,68 @@ My-Shade-Project/
 | POST | /api/users | Create a new user | Admin |
 | DELETE | /api/users/:id | Delete a user | Admin |
 
+## Cloud Deployment
+
+The production deployment uses a cloud-agnostic architecture — each component can be swapped for an equivalent service on any cloud provider.
+
+| Component | Production | Local Dev | Swap With |
+|---|---|---|---|
+| Frontend | Vercel | Vite dev server | Netlify, AWS Amplify, S3 static hosting |
+| Server | AWS EC2 (Docker) | Docker Compose | GCP Cloud Run, DigitalOcean Droplet, Azure VM |
+| Database | AWS RDS (MySQL) | MySQL container | GCP Cloud SQL, PlanetScale, Supabase |
+| File Storage | AWS S3 | Local disk (uploads/) | Cloudflare R2, MinIO, DigitalOcean Spaces |
+| HTTPS Tunnel | Cloudflare Tunnel | — | Nginx + Let's Encrypt (custom domain) |
+
+### Architecture
+
+```
+Browser (Vercel)
+    │
+    ├─── HTTPS REST ──► Cloudflare Tunnel ──► EC2 :3001 (Docker)
+    │                                              │
+    └─── WebSocket ───► Cloudflare Tunnel          ├─► AWS RDS (MySQL)
+                                                   └─► AWS S3 (images)
+```
+
+### Storage Abstraction
+
+File uploads use a provider-agnostic `storageService.js` built on the AWS SDK v3. To switch providers, set environment variables only — no code changes needed:
+
+```env
+# AWS S3 (default — leave STORAGE_ENDPOINT empty)
+STORAGE_ENDPOINT=
+
+# Cloudflare R2
+STORAGE_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+
+# MinIO (self-hosted)
+STORAGE_ENDPOINT=http://localhost:9000
+```
+
+### Environment Variables
+
+| Variable | Description |
+|---|---|
+| `PORT` | Server port (default: 3001) |
+| `DB_HOST` | MySQL host (RDS endpoint in production) |
+| `DB_USER` / `DB_PASSWORD` / `DB_NAME` | Database credentials |
+| `JWT_SECRET` | Secret key for signing JWT tokens |
+| `STORAGE_BUCKET_NAME` | S3-compatible bucket name |
+| `STORAGE_REGION` | Storage region |
+| `STORAGE_ENDPOINT` | Custom endpoint (leave empty for AWS S3) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Storage credentials |
+| `WEATHER_API_KEY` | OpenWeatherMap API key |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Email config |
+| `CLIENT_URL` | Frontend URL (for CORS and email links) |
+
+### Deploying to Production
+
+```bash
+# On EC2 — pull latest and rebuild the container
+git pull
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
 ## Scalability Considerations
 
 The current architecture handles a single-campus deployment. To scale further:
@@ -283,6 +357,4 @@ The current architecture handles a single-campus deployment. To scale further:
 
 ## Future Improvements
 
-- Cloud deployment (Docker Hub → cloud provider)
-- Historical analytics dashboard with weekly/monthly trend aggregation
-- Multi-campus support with campus selection UI
+- Persistent Cloudflare named tunnel (requires custom domain) for stable production URL
