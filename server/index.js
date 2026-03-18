@@ -15,12 +15,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
+app.set('io', io);
 
-// Inject Socket.io instance into every request so controllers can emit events
-app.use((req, res, next) => {
-    req.io = io;
-    next();
-});
 
 io.on('connection', (socket) => {
     socket.on('disconnect', () => {});
