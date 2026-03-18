@@ -12,7 +12,7 @@ import './CampusMap.css';
  * @returns {number} The parsed percentage value.
  */
 const parseCoord = (val) => {
-    if (val === undefined || val === null) return 50; 
+    if (val === undefined || val === null) return 50;
     if (typeof val === 'number') return val;
     return parseFloat(val.toString().replace('%', ''));
 };
@@ -26,17 +26,17 @@ const parseCoord = (val) => {
 const getCoords = (area) => {
     let raw = area.map_coordinates || area.map_position;
     if (!raw) return { top: 50, left: 50 };
-    
+
     if (typeof raw === 'object') return raw;
-    
+
     try {
         if (typeof raw === 'string') {
             if (raw.startsWith('"')) raw = JSON.parse(raw);
-            if (typeof raw === 'string') raw = JSON.parse(raw); 
+            if (typeof raw === 'string') raw = JSON.parse(raw);
         }
         return raw;
     } catch (e) {
-        return { top: 50, left: 50 }; 
+        return { top: 50, left: 50 };
     }
 };
 
@@ -53,31 +53,58 @@ const getCoords = (area) => {
  */
 const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
     const showNotification = useNotification();
-    
+
     const [isMapEditing, setIsMapEditing] = useState(false);
     const [editMode, setEditMode] = useState('none');
     const [draggingId, setDraggingId] = useState(null);
     const [tempPosition, setTempPosition] = useState({ top: 0, left: 0 });
     const [pendingMoves, setPendingMoves] = useState({});
-    
+    const [pendingAdds, setPendingAdds] = useState([]);
+    const [pendingDeletes, setPendingDeletes] = useState(new Set());
+
     const mapWrapperRef = useRef(null);
-    const dragPositionRef = useRef({ top: 0, left: 0 }); 
+    const dragPositionRef = useRef({ top: 0, left: 0 });
     const dragStartOffset = useRef({ x: 0, y: 0 });
 
+    const clearAllPending = () => {
+        setPendingMoves({});
+        setPendingAdds([]);
+        setPendingDeletes(new Set());
+    };
+
     useEffect(() => {
-        if (!isMapEditing) { setEditMode('none'); setPendingMoves({}); }
+        if (!isMapEditing) { setEditMode('none'); clearAllPending(); }
     }, [isMapEditing]);
 
     const handleSave = async () => {
         try {
-            await Promise.all(
-                Object.entries(pendingMoves).map(([id, pos]) =>
+            await Promise.all([
+                // Save moved pins
+                ...Object.entries(pendingMoves).map(([id, pos]) =>
                     axios.put(`${API_BASE_URL}/areas/${id}/map-coordinates`, {
                         map_coordinates: JSON.stringify(pos)
                     }, getAuthHeader())
-                )
-            );
-            setPendingMoves({});
+                ),
+                // Create new pins
+                ...pendingAdds.map(({ name, position }) => {
+                    const formData = new FormData();
+                    formData.append('room', name);
+                    formData.append('description', 'New Room');
+                    formData.append('map_coordinates', JSON.stringify(position));
+                    const authConfig = getAuthHeader();
+                    return axios.post(`${API_BASE_URL}/areas`, formData, {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                            ...authConfig?.headers
+                        }
+                    });
+                }),
+                // Delete removed pins
+                ...[...pendingDeletes].map(id =>
+                    axios.delete(`${API_BASE_URL}/areas/${id}`, getAuthHeader())
+                ),
+            ]);
+            clearAllPending();
             setIsMapEditing(false);
             onUpdateAreas();
             showNotification("Map layout saved", "success");
@@ -107,16 +134,16 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             x: mouseX - pinX,
             y: mouseY - pinY
         };
-        
-        setTempPosition(currentCoords); 
-        setDraggingId(area.id); 
+
+        setTempPosition(currentCoords);
+        setDraggingId(area.id);
     };
 
     /**
      * Handles the movement and final drop of a dragged pin.
      */
     useEffect(() => {
-        if (draggingId === null) return; 
+        if (draggingId === null) return;
 
         const handleMouseMove = (e) => {
             const mapRect = mapWrapperRef.current?.getBoundingClientRect();
@@ -130,7 +157,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
 
             let newLeft = (newPinX / mapRect.width) * 100;
             let newTop = (newPinY / mapRect.height) * 100;
-            
+
             newTop = Math.max(0, Math.min(100, newTop));
             newLeft = Math.max(0, Math.min(100, newLeft));
 
@@ -140,7 +167,19 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         };
 
         const handleMouseUp = () => {
-            setPendingMoves(prev => ({ ...prev, [draggingId]: dragPositionRef.current }));
+            const id = draggingId;
+            const finalPos = dragPositionRef.current;
+            // If it's a pending add, update its position; otherwise track as pending move
+            setPendingAdds(prev => {
+                const idx = prev.findIndex(a => a.tempId === id);
+                if (idx !== -1) {
+                    const updated = [...prev];
+                    updated[idx] = { ...updated[idx], position: finalPos, map_coordinates: finalPos };
+                    return updated;
+                }
+                return prev;
+            });
+            setPendingMoves(prev => ({ ...prev, [id]: finalPos }));
             setDraggingId(null);
         };
 
@@ -151,12 +190,12 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [draggingId, onUpdateAreas, showNotification]);
+    }, [draggingId]);
 
     /**
-     * Creates a new room at the clicked map coordinates.
+     * Queues a new room pin at the clicked map coordinates (saved on Save).
      */
-    const handleMapClick = async (e) => {
+    const handleMapClick = (e) => {
         if (editMode !== 'add') return;
         const rect = e.currentTarget.getBoundingClientRect();
         const top = ((e.clientY - rect.top) / rect.height) * 100;
@@ -164,47 +203,40 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
 
         const roomName = prompt('Enter a name for the new room:');
         if (roomName) {
-            try {
-                const formData = new FormData();
-                formData.append('room', roomName);
-                formData.append('description', 'New Room');
-                formData.append('map_coordinates', JSON.stringify({ top, left }));
-                
-                const authConfig = getAuthHeader();
-                await axios.post(`${API_BASE_URL}/areas`, formData, {
-                    headers: { 
-                        'Content-Type': 'multipart/form-data',
-                        ...authConfig?.headers 
-                    }
-                });
-                
-                onUpdateAreas(); 
-                showNotification(`Room "${roomName}" created`, "success");
-            } catch (error) {
-                console.error("Failed to create room:", error);
-                showNotification("Could not create room", "error");
-            }
+            const tempId = `temp_${Date.now()}`;
+            setPendingAdds(prev => [...prev, {
+                tempId,
+                id: tempId,
+                name: roomName,
+                room: roomName,
+                position: { top, left },
+                map_coordinates: { top, left },
+                current_position: null,
+            }]);
         }
     };
-    
+
     /**
-     * Deletes a selected room from the system.
+     * Queues a room for deletion (or removes a pending add immediately).
      */
-    const handleDeleteClick = async (e, areaToDelete) => {
+    const handleDeleteClick = (e, areaToDelete) => {
         e.stopPropagation();
+        const isTempPin = String(areaToDelete.id).startsWith('temp_');
+        if (isTempPin) {
+            setPendingAdds(prev => prev.filter(a => a.tempId !== areaToDelete.id));
+            return;
+        }
         const name = areaToDelete.name || areaToDelete.room || 'this room';
-        
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
-            try {
-                await axios.delete(`${API_BASE_URL}/areas/${areaToDelete.id}`, getAuthHeader());
-                onUpdateAreas();
-                showNotification("Room deleted", "success");
-            } catch (error) {
-                console.error("Failed to delete room:", error);
-                showNotification("Failed to delete the selected room", "error");
-            }
+            setPendingDeletes(prev => new Set([...prev, areaToDelete.id]));
         }
     };
+
+    // Combine real areas (minus pending deletes) with pending adds
+    const visibleAreas = [
+        ...areas.filter(a => !pendingDeletes.has(a.id)),
+        ...pendingAdds,
+    ];
 
     return (
         <div className="map-scroll-wrapper">
@@ -219,16 +251,16 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                             <button className={editMode === 'add' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'add' ? 'none' : 'add')} title="Add Room">➕ Add</button>
                             <button className={editMode === 'move' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'move' ? 'none' : 'move')} title="Move Room">✋ Move</button>
                             <button className={editMode === 'delete' ? 'active' : ''} onClick={() => setEditMode(prev => prev === 'delete' ? 'none' : 'delete')} title="Delete Room">🗑️ Delete</button>
-                            
+
                             <div className="toolbar-divider"></div>
-                            
+
                             <button className="save-btn" onClick={handleSave}>💾 Save</button>
-                            <button className="cancel-btn" onClick={() => { setPendingMoves({}); setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
+                            <button className="cancel-btn" onClick={() => { clearAllPending(); setIsMapEditing(false); onUpdateAreas(); }}>✖ Cancel</button>
                         </div>
                     )}
                 </div>
             )}
-            
+
             <div
                 ref={mapWrapperRef}
                 className="map-image-wrapper"
@@ -237,15 +269,20 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
             >
                 <img src="/campus_map.png" alt="Campus Map" className="main-map-image" />
 
-                {areas.map((area) => {
-                    const coords = area.id === draggingId ? tempPosition : (pendingMoves[area.id] || getCoords(area));
+                {visibleAreas.map((area) => {
+                    const isTempPin = String(area.id).startsWith('temp_');
+                    const coords = area.id === draggingId
+                        ? tempPosition
+                        : (isTempPin
+                            ? (pendingMoves[area.id] || area.map_coordinates)
+                            : (pendingMoves[area.id] || getCoords(area)));
                     const isDeleting = isMapEditing && editMode === 'delete';
                     const displayName = area.name || area.room || 'Room';
 
                     return (
                         <div
                             key={area.id}
-                            className={`map-pin ${draggingId === area.id ? 'dragging' : ''}`}
+                            className={`map-pin ${draggingId === area.id ? 'dragging' : ''} ${isTempPin ? 'pin-pending' : ''}`}
                             style={{
                                 top: `${parseCoord(coords.top)}%`,
                                 left: `${parseCoord(coords.left)}%`,
