@@ -4,9 +4,7 @@
  * manual shade overrides, and real-time simulation parameters.
  */
 const db = require('../config/db');
-
-// Base URL for image paths
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const { uploadFile } = require('../services/storageService');
 
 /**
  * Get all areas with parsed JSON coordinates and sensor data.
@@ -51,8 +49,8 @@ exports.createArea = async (req, res) => {
     try {
         let { room, description, map_coordinates } = req.body;
         
-        // Handle file path if image was uploaded
-        const imagePath = req.file ? `${BASE_URL}/uploads/${req.file.filename}` : null;
+        // Upload image to object storage and get back the public URL
+        const imagePath = req.file ? await uploadFile(req.file) : null;
         
         // Ensure coordinates are saved as JSON string
         let coordsToSave = map_coordinates || { top: '50%', left: '50%' };
@@ -106,7 +104,7 @@ exports.uploadMapImage = async (req, res) => {
     }
 
     try {
-        const imagePath = `${BASE_URL}/uploads/${req.file.filename}`;
+        const imagePath = await uploadFile(req.file);
         await db.query('UPDATE areas SET map_file_path = ? WHERE id = ?', [imagePath, id]);
         
         if (req.io) req.io.emit('refresh_areas');
