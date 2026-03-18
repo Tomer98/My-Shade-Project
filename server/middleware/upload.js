@@ -4,37 +4,11 @@
  * filename sanitization, and file type/size validations.
  */
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// Docker compatibility: Using process.cwd() ensures we target the root server directory
-const uploadDir = path.join(process.cwd(), 'uploads');
-
-// Ensure the 'uploads' directory exists before accepting files
-if (!fs.existsSync(uploadDir)) {
-    try {
-        fs.mkdirSync(uploadDir, { recursive: true });
-        console.log("✅ Created 'uploads' directory successfully.");
-    } catch (err) {
-        console.error("❌ Failed to create 'uploads' directory. Check permissions!", err);
-    }
-}
-
-// Storage configuration
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir); // Save to the configured uploads directory
-    },
-    filename: function (req, file, cb) {
-        // Generate a unique identifier to prevent file overwriting
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        
-        // Sanitize the original filename (replace spaces with underscores to prevent URL issues)
-        const sanitizedOriginalName = file.originalname.replace(/\s+/g, '_');
-        
-        cb(null, uniqueSuffix + path.extname(sanitizedOriginalName));
-    }
-});
+// memoryStorage keeps the file in RAM as req.file.buffer
+// instead of writing it to disk. The storageService then
+// streams it directly to S3 — the container's filesystem is never touched.
+const storage = multer.memoryStorage();
 
 // File filter to explicitly allow only image mime types
 const fileFilter = (req, file, cb) => {
