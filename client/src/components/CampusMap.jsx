@@ -121,18 +121,18 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         e.preventDefault();
         e.stopPropagation();
 
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
         const mapRect = mapWrapperRef.current.getBoundingClientRect();
-        const currentCoords = getCoords(area);
+        const currentCoords = pendingMoves[area.id] || getCoords(area);
 
         const pinX = (parseCoord(currentCoords.left) / 100) * mapRect.width;
         const pinY = (parseCoord(currentCoords.top) / 100) * mapRect.height;
 
-        const mouseX = e.clientX - mapRect.left;
-        const mouseY = e.clientY - mapRect.top;
-
         dragStartOffset.current = {
-            x: mouseX - pinX,
-            y: mouseY - pinY
+            x: clientX - mapRect.left - pinX,
+            y: clientY - mapRect.top - pinY
         };
 
         setTempPosition(currentCoords);
@@ -146,14 +146,15 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
         if (draggingId === null) return;
 
         const handleMouseMove = (e) => {
+            e.preventDefault();
             const mapRect = mapWrapperRef.current?.getBoundingClientRect();
             if (!mapRect) return;
 
-            const mouseX = e.clientX - mapRect.left;
-            const mouseY = e.clientY - mapRect.top;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            const newPinX = mouseX - dragStartOffset.current.x;
-            const newPinY = mouseY - dragStartOffset.current.y;
+            const newPinX = clientX - mapRect.left - dragStartOffset.current.x;
+            const newPinY = clientY - mapRect.top - dragStartOffset.current.y;
 
             let newLeft = (newPinX / mapRect.width) * 100;
             let newTop = (newPinY / mapRect.height) * 100;
@@ -185,10 +186,14 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
 
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('touchmove', handleMouseMove, { passive: false });
+        window.addEventListener('touchend', handleMouseUp);
 
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('touchmove', handleMouseMove);
+            window.removeEventListener('touchend', handleMouseUp);
         };
     }, [draggingId]);
 
@@ -291,6 +296,7 @@ const CampusMap = ({ areas, onSelectArea, onUpdateAreas, user }) => {
                                 '--pin-color': getShadeColor(area.current_position),
                             }}
                             onMouseDown={(e) => handleMouseDown(e, area)}
+                            onTouchStart={(e) => handleMouseDown(e, area)}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (isDeleting) {
