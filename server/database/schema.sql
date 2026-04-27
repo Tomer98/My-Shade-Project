@@ -23,11 +23,6 @@ CREATE TABLE users (
     reset_token_expires DATETIME NULL
 );
 
-INSERT INTO users (username, password, email, role) VALUES 
-('Alice', 'password123', 'alice@campus.edu', 'admin'),
-('Bob', 'password123', 'bob@campus.edu', 'maintenance'),
-('Dana', 'password123', 'dana@campus.edu', 'planner'),
-('Tom', 'password123', 'bareltom33@gmail.com', 'admin');
 
 -- ==========================================
 -- 2. 🏢 AREAS (ROOMS) TABLE

@@ -14,8 +14,8 @@ services:
     container_name: shade_mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: password123
-      MYSQL_DATABASE: shade_system_test
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
       - "3307:3306" # Mapped to 3307 externally to avoid local conflicts
     volumes:
@@ -23,7 +23,7 @@ services:
       # Mounts the schema file to auto-initialize the database on first run
       - ./server/database/schema.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,8 +44,8 @@ services:
       - PORT=3001
       - DB_HOST=mysqldb
       - DB_USER=root
-      - DB_PASSWORD=password123
-      - DB_NAME=shade_system_test
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - DB_NAME=${MYSQL_DATABASE}
       - TZ=Asia/Jerusalem
       - CORS_ORIGINS=http://localhost:5173
     
