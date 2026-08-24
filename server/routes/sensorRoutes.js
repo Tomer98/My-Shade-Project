@@ -33,8 +33,8 @@ router.get('/history/:areaId', verifyToken, sensorController.getHistoryByArea);
 /**
  * @route   POST /
  * @desc    Add raw sensor data
- * @access  Private (All authenticated users)
+ * @access  Public (Hardware/simulator ingestion — devices don't hold a user JWT)
  */
-router.post('/', verifyToken, sensorController.addSensorData);
+router.post('/', sensorController.addSensorData);
 
 module.exports = router;

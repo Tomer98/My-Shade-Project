@@ -18,11 +18,18 @@ router.use(verifyToken, checkRole(['admin']));
 router.get('/', userController.getAllUsers);
 
 /**
- * @route   POST /register
+ * @route   POST /
  * @desc    Create a new user account (Staff/Admin)
  * @access  Private (Admin only)
  */
-router.post('/register', userController.createUser);
+router.post('/', userController.createUser);
+
+/**
+ * @route   PUT /:id
+ * @desc    Update an existing user's role/permission
+ * @access  Private (Admin only)
+ */
+router.put('/:id', userController.updateUser);
 
 /**
  * @route   DELETE /:id
