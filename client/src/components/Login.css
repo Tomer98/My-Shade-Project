@@ -71,3 +71,15 @@
     color: #7f8c8d;
     font-size: 0.9rem;
 }
+
+.login-lang-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.login-lang-row .language-switcher {
+    border-color: #d6dde3;
+    background: #fff;
+    color: #34495e;
+}

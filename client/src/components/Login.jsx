@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { useLanguage } from '../i18n/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 import './Login.css';
 
 /**
@@ -9,6 +11,7 @@ import './Login.css';
  * and passing the authenticated user data (including token) back to the parent.
  */
 const Login = ({ onLogin, onForgotPassword }) => {
+    const { t } = useLanguage();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -42,29 +45,32 @@ const Login = ({ onLogin, onForgotPassword }) => {
     return (
         <div className="login-container">
             <div className="login-card">
-                <h2>System Login 🔐</h2>
+                <div className="login-lang-row">
+                    <LanguageSwitcher isAdmin={false} />
+                </div>
+                <h2>{t('login.title')} 🔐</h2>
                 <form onSubmit={handleSubmit}>
-                    <input 
-                        type="text" 
-                        placeholder="Email / Username" 
-                        value={username} 
-                        onChange={(e) => setUsername(e.target.value)} 
+                    <input
+                        type="text"
+                        placeholder={t('login.username')}
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
                         required
                     />
-                    <input 
-                        type="password" 
-                        placeholder="Password" 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
+                    <input
+                        type="password"
+                        placeholder={t('login.password')}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                     />
-                    <button type="submit">Login</button>
+                    <button type="submit">{t('login.submit')}</button>
                     <button
                         type="button"
                         onClick={onForgotPassword}
                         style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', marginTop: '0.5rem', fontSize: '0.85rem' }}
                     >
-                        Forgot password?
+                        {t('login.forgot')}
                     </button>
                 </form>
                 {/* Error message display, styles are managed in Login.css */}

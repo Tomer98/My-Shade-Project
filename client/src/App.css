@@ -188,3 +188,37 @@ html, body, #root, .app-container {
         min-height: 400px;
     }
 }
+
+/* --- Language switcher in the header --- */
+.language-switcher {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.language-switcher option {
+    color: #2c3e50;
+    background: #fff;
+}
+
+/* --- RTL support (Hebrew) --- */
+[dir="rtl"] .app-header,
+[dir="rtl"] .header-controls,
+[dir="rtl"] .header-brand {
+    direction: rtl;
+}
+
+[dir="rtl"] .mission-card,
+[dir="rtl"] .subtask-actions,
+[dir="rtl"] .subtask-comment {
+    text-align: right;
+}
+
+[dir="rtl"] .mission-card { border-left: none; border-right: 4px solid #bdc3c7; }
+[dir="rtl"] .subtask-item { border-left: none; border-right: 3px solid #bdc3c7; }
+[dir="rtl"] .subtask-comment,
+[dir="rtl"] .subtask-actions { padding-left: 0; padding-right: 1.6rem; }
