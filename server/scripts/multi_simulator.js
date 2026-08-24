@@ -4,19 +4,43 @@
  * This script acts as mock IoT hardware. It generates random weather scenarios
  * (Summer, Winter, Glare, Neutral) for multiple rooms simultaneously and sends
  * the raw data to the server's public sensor endpoint.
- * Usage: Run this script in a separate terminal to demo the smart automation.
- * Command: node scripts/multi_simulator.js
+ *
+ * Usage (run in its own terminal):
+ *   node scripts/multi_simulator.js            # simulate every room in the DB
+ *   node scripts/multi_simulator.js 1 2 10     # simulate specific room IDs
+ *
+ * With no arguments it discovers the real room IDs from the API, so it keeps
+ * working after rooms are added or deleted. Discovery needs a login, taken from
+ * SIM_USER / SIM_PASS (defaults to the seeded dev admin).
  */
 const axios = require('axios');
 
 // --- Configuration ---
-const SERVER_URL = 'http://localhost:3001/api/sensors';
-const TARGET_IDS = [2, 3, 4]; // The IDs of the areas/rooms to simulate
-const INTERVAL_MS = 4000;     // 4 seconds between cycles
+const API_BASE = process.env.SIM_API_BASE || 'http://localhost:3001/api';
+const SERVER_URL = `${API_BASE}/sensors`;
+const INTERVAL_MS = 4000; // 4 seconds between cycles
 
-console.log('🚀 --- Scenario-Based Simulator Started --- 🚀');
-console.log(`Targeting Areas: ${TARGET_IDS.join(', ')}`);
-console.log(`Interval: ${INTERVAL_MS / 1000} seconds\n`);
+/**
+ * Resolves which rooms to simulate: explicit CLI arguments if given, otherwise
+ * every room the API reports.
+ * @returns {Promise<number[]>} Area IDs to simulate.
+ */
+async function resolveTargetIds() {
+    const fromArgs = process.argv.slice(2).map(Number).filter(Number.isInteger);
+    if (fromArgs.length > 0) return fromArgs;
+
+    const username = process.env.SIM_USER || 'Tom';
+    const password = process.env.SIM_PASS || 'password123';
+
+    const login = await axios.post(`${API_BASE}/auth/login`, { username, password });
+    const token = login.data.token;
+
+    const areas = await axios.get(`${API_BASE}/areas`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return (areas.data.data || []).map(a => a.id);
+}
 
 /**
  * Helper: Generate a random number within a range.
@@ -87,7 +111,29 @@ async function sendData(id) {
 // ==========================================
 // 🌪️ Main Loop
 // ==========================================
-setInterval(() => {
-    console.log('\n--- New Weather Cycle ---');
-    TARGET_IDS.forEach(id => sendData(id));
-}, INTERVAL_MS);
+(async () => {
+    console.log('🚀 --- Scenario-Based Simulator Started --- 🚀');
+
+    let targetIds;
+    try {
+        targetIds = await resolveTargetIds();
+    } catch (error) {
+        console.error(`❌ Could not discover rooms: ${error.message}`);
+        console.error('   Is the server running? You can also pass IDs directly:');
+        console.error('   node scripts/multi_simulator.js 1 2 3');
+        process.exit(1);
+    }
+
+    if (targetIds.length === 0) {
+        console.error('❌ No rooms found to simulate. Create a room first.');
+        process.exit(1);
+    }
+
+    console.log(`Targeting Areas: ${targetIds.join(', ')}`);
+    console.log(`Interval: ${INTERVAL_MS / 1000} seconds\n`);
+
+    setInterval(() => {
+        console.log('\n--- New Weather Cycle ---');
+        targetIds.forEach(id => sendData(id));
+    }, INTERVAL_MS);
+})();
