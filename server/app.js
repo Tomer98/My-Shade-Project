@@ -17,6 +17,8 @@ const sensorRoutes = require('./routes/sensorRoutes');
 const areaRoutes = require('./routes/areaRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const schedulerRoutes = require('./routes/schedulerRoutes');
+const missionRoutes = require('./routes/missionRoutes');
+const guideRoutes = require('./routes/guideRoutes');
 
 const app = express();
 
@@ -69,6 +71,8 @@ app.use('/api/areas', areaRoutes);
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/schedules', schedulerRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/missions', missionRoutes);
+app.use('/api/guides', guideRoutes);
 
 // ==========================================
 // 🚨 Fallback & Error Handling
