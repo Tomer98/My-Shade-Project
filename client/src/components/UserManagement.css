@@ -93,3 +93,30 @@
     font-size: 1.2rem;
     padding: 5px;
 }
+
+/* --- Assignment attributes: workload & availability --- */
+.workload-badge {    display: inline-block;
+    min-width: 22px;
+    padding: 2px 6px;
+    margin-right: 6px;
+    border-radius: 10px;
+    background: #ecf0f1;
+    color: #566573;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.availability-toggle {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+}
+
+.availability-toggle.free { background: #27ae60; }
+.availability-toggle.busy { background: #95a5a6; }
+.availability-toggle:hover { filter: brightness(0.92); }

@@ -25,7 +25,9 @@ const getRoleClass = (role) => {
 const UserManagement = () => {
     const showNotification = useNotification();
     const [users, setUsers] = useState([]);
-    const [newUser, setNewUser] = useState({ username: '', password: '', role: 'planner' });
+    const [newUser, setNewUser] = useState({
+        username: '', password: '', role: 'planner', speciality: '', work_area: ''
+    });
     const [loading, setLoading] = useState(false);
 
     /**
@@ -70,13 +72,54 @@ const UserManagement = () => {
         try {
             const response = await axios.post(`${API_BASE_URL}/users`, newUser, config);
             if (response.data.success) {
-                setNewUser({ username: '', password: '', role: 'planner' });
+                setNewUser({ username: '', password: '', role: 'planner', speciality: '', work_area: '' });
                 showNotification(`User "${newUser.username}" added successfully! 🎉`, 'success');
                 fetchUsers();
             }
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Failed to add user.';
             showNotification(errorMsg, 'error');
+        }
+    };
+
+    /**
+     * Updates an existing user's role (permission promotion/demotion).
+     * @param {number|string} id - The unique ID of the user to update.
+     * @param {string} newRole - The role to assign.
+     */
+    const handleRoleChange = async (id, newRole) => {
+        const config = getAuthHeader();
+        if (!config) {
+            showNotification('Session expired. Please log in again.', 'error');
+            return;
+        }
+
+        try {
+            const response = await axios.put(`${API_BASE_URL}/users/${id}`, { role: newRole }, config);
+            if (response.data.success) {
+                showNotification('User role updated.', 'success');
+                fetchUsers();
+            }
+        } catch (err) {
+            showNotification('Failed to update user role.', 'error');
+        }
+    };
+
+    /**
+     * Marks a worker as available or unavailable for new assignments.
+     * @param {number|string} id - The user to update.
+     * @param {boolean} isAvailable - The new availability state.
+     */
+    const handleAvailabilityToggle = async (id, isAvailable) => {
+        const config = getAuthHeader();
+        if (!config) return;
+
+        try {
+            await axios.put(`${API_BASE_URL}/users/${id}`, { is_available: isAvailable }, config);
+            fetchUsers();
+        } catch (err) {
+            console.error('Error updating availability:', err);
+            showNotification('Failed to update availability.', 'error');
         }
     };
 
@@ -122,6 +165,16 @@ const UserManagement = () => {
                     <option value="maintenance">Maintenance</option>
                     <option value="planner">Planner</option>
                 </select>
+                <input
+                    placeholder="Speciality (e.g. Electrical)"
+                    value={newUser.speciality}
+                    onChange={e => setNewUser({...newUser, speciality: e.target.value})}
+                />
+                <input
+                    placeholder="Work area (e.g. Building 5)"
+                    value={newUser.work_area}
+                    onChange={e => setNewUser({...newUser, work_area: e.target.value})}
+                />
                 <button onClick={handleAddUser}>+ Add User</button>
             </div>
             
@@ -133,6 +186,9 @@ const UserManagement = () => {
                             <th>ID</th>
                             <th>Username</th>
                             <th>Role</th>
+                            <th>Speciality</th>
+                            <th>Work area</th>
+                            <th>Workload</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -142,9 +198,29 @@ const UserManagement = () => {
                                 <td>{user.id}</td>
                                 <td>{user.username}</td>
                                 <td>
-                                    <span className={`role-badge ${getRoleClass(user.role)}`}>
-                                        {user.role}
+                                    <select
+                                        className={`role-badge ${getRoleClass(user.role)}`}
+                                        value={user.role}
+                                        onChange={e => handleRoleChange(user.id, e.target.value)}
+                                    >
+                                        <option value="admin">admin</option>
+                                        <option value="maintenance">maintenance</option>
+                                        <option value="planner">planner</option>
+                                    </select>
+                                </td>
+                                <td>{user.speciality || '—'}</td>
+                                <td>{user.work_area || '—'}</td>
+                                <td>
+                                    <span className="workload-badge" title="Open missions assigned">
+                                        {user.open_missions || 0}
                                     </span>
+                                    <button
+                                        className={`availability-toggle ${user.is_available ? 'free' : 'busy'}`}
+                                        onClick={() => handleAvailabilityToggle(user.id, !user.is_available)}
+                                        title="Toggle availability"
+                                    >
+                                        {user.is_available ? 'Available' : 'Unavailable'}
+                                    </button>
                                 </td>
                                 <td>
                                     <button onClick={() => handleDelete(user.id)} className="delete-btn" title="Delete User">
