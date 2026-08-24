@@ -135,6 +135,39 @@ exports.updateMapCoordinates = async (req, res) => {
 };
 
 /**
+ * Set the room's real-world GPS position, used to navigate to it.
+ * Distinct from map_coordinates, which only places a pin on the campus image.
+ */
+exports.updateGpsLocation = async (req, res) => {
+    const { id } = req.params;
+    const latitude = parseFloat(req.body.latitude);
+    const longitude = parseFloat(req.body.longitude);
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+        return res.status(400).json({ success: false, message: 'latitude must be between -90 and 90' });
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        return res.status(400).json({ success: false, message: 'longitude must be between -180 and 180' });
+    }
+
+    try {
+        const [result] = await db.query(
+            'UPDATE areas SET latitude = ?, longitude = ? WHERE id = ?',
+            [latitude, longitude, id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Area not found' });
+        }
+
+        if (req.io) req.io.emit('refresh_areas');
+        res.json({ success: true, message: 'GPS location saved', latitude, longitude });
+    } catch (error) {
+        console.error("GPS Update Error:", error);
+        res.status(500).json({ success: false, message: 'Failed to save GPS location.' });
+    }
+};
+
+/**
  * Update sensor layout within a room.
  */
 exports.updateSensorPositions = async (req, res) => {
