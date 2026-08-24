@@ -4,6 +4,7 @@ import SensorChart from './SensorChart';
 import SensorMap from './SensorMap';
 import { getShadeColor } from '../utils/getShadeColor';
 import { getAuthHeader } from '../utils/auth';
+import { getCurrentPosition } from '../utils/nativeBridge';
 import { useNotification } from '../context/NotificationContext';
 import { API_BASE_URL } from '../config';
 import './RoomDashboard.css';
@@ -234,40 +235,25 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
      * Reads the device's GPS, which is accurate when an admin does this while
      * standing at the room.
      */
-    const handleCaptureGps = () => {
-        if (!navigator.geolocation) {
-            showNotification('This browser does not provide location services.', 'error');
-            return;
-        }
-
+    const handleCaptureGps = async () => {
         setIsLocating(true);
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                try {
-                    await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/gps`, {
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude,
-                    }, getAuthHeader());
+        try {
+            const { latitude, longitude } = await getCurrentPosition();
 
-                    showNotification('Room GPS location saved.', 'success');
-                    if (onUpdate) onUpdate();
-                } catch (error) {
-                    console.error('GPS save failed:', error);
-                    showNotification('Failed to save GPS location.', 'error');
-                } finally {
-                    setIsLocating(false);
-                }
-            },
-            (err) => {
-                setIsLocating(false);
-                // Secure-context failures are the common case here, so name them
-                const reason = err.code === err.PERMISSION_DENIED
-                    ? 'Location permission denied (HTTPS is required for GPS).'
-                    : 'Could not read your location.';
-                showNotification(reason, 'error');
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
+            await axios.put(
+                `${API_BASE_URL}/areas/${selectedArea.id}/gps`,
+                { latitude, longitude },
+                getAuthHeader()
+            );
+
+            showNotification('Room GPS location saved.', 'success');
+            if (onUpdate) onUpdate();
+        } catch (error) {
+            console.error('GPS capture failed:', error);
+            showNotification(error.message || 'Failed to save GPS location.', 'error');
+        } finally {
+            setIsLocating(false);
+        }
     };
 
     /**

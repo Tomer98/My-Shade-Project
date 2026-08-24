@@ -1,0 +1,17 @@
+{
+  "appId": "il.ac.hit.smartshade",
+  "appName": "Smart Shade",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "Camera": {
+      "androidxCameraVersion": "1.3.0"
+    }
+  }
+}

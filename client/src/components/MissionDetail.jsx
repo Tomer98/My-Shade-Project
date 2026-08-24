@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { getAuthHeader } from '../utils/auth';
+import { isNative, capturePhoto, openExternal } from '../utils/nativeBridge';
 import { useNotification } from '../context/NotificationContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { API_BASE_URL } from '../config';
@@ -95,8 +96,30 @@ const MissionDetail = ({ mission, user, onBack, onChanged }) => {
         saveSubtask(subtask.id, 'Failed', reason, null);
     };
 
-    const handlePhotoClick = (subtask) => {
+    const handlePhotoClick = async (subtask) => {
         pendingPhotoSubtask.current = subtask;
+
+        // In the Android app the native camera gives a real capture UI and
+        // proper permission handling; on the web we fall back to the hidden
+        // file input below, which is the only route to the camera there.
+        if (isNative()) {
+            try {
+                const file = await capturePhoto();
+                if (!file) return; // user cancelled
+                await saveSubtask(
+                    subtask.id,
+                    subtask.status === 'Pending' ? 'Done' : subtask.status,
+                    subtask.comment,
+                    file
+                );
+                showNotification('Photo attached.', 'success');
+            } catch (err) {
+                console.error('Camera capture failed:', err);
+                showNotification('Could not capture a photo.', 'error');
+            }
+            return;
+        }
+
         photoInputRef.current?.click();
     };
 
@@ -133,11 +156,7 @@ const MissionDetail = ({ mission, user, onBack, onChanged }) => {
         }
 
         const destination = `${mission.latitude},${mission.longitude}`;
-        window.open(
-            `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
-            '_blank',
-            'noopener'
-        );
+        openExternal(`https://www.google.com/maps/dir/?api=1&destination=${destination}`);
     };
 
     const handleFinish = async () => {

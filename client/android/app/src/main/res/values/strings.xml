@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Smart Shade</string>
+    <string name="title_activity_main">Smart Shade</string>
+    <string name="package_name">il.ac.hit.smartshade</string>
+    <string name="custom_url_scheme">il.ac.hit.smartshade</string>
+</resources>
