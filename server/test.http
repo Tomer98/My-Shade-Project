@@ -57,3 +57,89 @@ Authorization: Bearer {{authToken}}
  */
 GET {{baseUrl}}/areas
 Authorization: Bearer {{authToken}}
+###
+
+/**
+ * @test    Create Mission
+ * @desc    Define a recurring maintenance mission with its subtask checklist.
+ * @route   POST /api/missions
+ * @access  Private (Admin & Maintenance)
+ */
+POST {{baseUrl}}/missions
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "area_id": 1,
+    "title": "Quarterly shade service",
+    "description": "Full mechanical inspection",
+    "frequency_days": 90,
+    "scheduled_date": "2026-09-01",
+    "subtasks": ["Clean rails", "Test motor", "Check sensor calibration"]
+}
+
+###
+
+/**
+ * @test    Daily Missions
+ * @desc    Fetch the current user's missions due today.
+ * @route   GET /api/missions?scope=today
+ * @access  Private (Requires Bearer Token)
+ */
+GET {{baseUrl}}/missions?scope=today
+Authorization: Bearer {{authToken}}
+
+###
+
+/**
+ * @test    Fail a Subtask
+ * @desc    Mark a subtask as blocked. Automatically opens a service ticket.
+ * @route   PUT /api/missions/subtasks/:id
+ * @access  Private (Assigned worker, or manager)
+ */
+PUT {{baseUrl}}/missions/subtasks/1
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "status": "Failed",
+    "comment": "Motor seized — replacement part on order"
+}
+
+###
+
+/**
+ * @test    Finish Mission
+ * @desc    Completes and reschedules, or escalates to the manager on failure.
+ * @route   PUT /api/missions/:id/complete
+ * @access  Private (Assigned worker, or manager)
+ */
+PUT {{baseUrl}}/missions/1/complete
+Authorization: Bearer {{authToken}}
+
+###
+
+/**
+ * @test    Close Day
+ * @desc    Roll all still-open missions over to tomorrow.
+ * @route   POST /api/missions/close-day
+ * @access  Private (Requires Bearer Token)
+ */
+POST {{baseUrl}}/missions/close-day
+Authorization: Bearer {{authToken}}
+
+###
+
+/**
+ * @test    Approve Guide
+ * @desc    Publish a pending knowledge-base guide to all users.
+ * @route   PUT /api/guides/:id/review
+ * @access  Private (Admin & Maintenance)
+ */
+PUT {{baseUrl}}/guides/1/review
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "status": "Approved"
+}
