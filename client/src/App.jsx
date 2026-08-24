@@ -4,6 +4,7 @@ import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import { NotificationProvider } from './context/NotificationContext';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import RoomDashboard from './components/RoomDashboard';
 import CampusMap from './components/CampusMap';
 import UserManagement from './components/UserManagement';
@@ -11,22 +12,26 @@ import AlertsSystem from './components/AlertsSystem';
 import SmartDashboard from './components/SmartDashboard';
 import SchedulerPanel from './components/SchedulerPanel';
 import ActivityLog from './components/ActivityLog';
+import MissionsPanel from './components/MissionsPanel';
+import GuidesPanel from './components/GuidesPanel';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import { getAuthHeader } from './utils/auth';
 import { API_BASE_URL } from './config';
-import { socket } from './socket'; 
+import { socket } from './socket';
 import './App.css';
 
-function App() {
+function AppContent() {
+    const { t } = useLanguage();
+
     // --- State Management ---
-    const [user, setUser] = useState(null); 
+    const [user, setUser] = useState(null);
     const [areas, setAreas] = useState([]);
     const [selectedArea, setSelectedArea] = useState(null);
     const [globalLogs, setGlobalLogs] = useState([]);
-    
-    // View States
-    const [showUserManagement, setShowUserManagement] = useState(false); 
-    const [showAlerts, setShowAlerts] = useState(false); 
-    const [showSmartDash, setShowSmartDash] = useState(true); 
+
+    // Which main panel is showing: map | alerts | manage | missions | guides
+    const [view, setView] = useState('map');
+    const [showSmartDash, setShowSmartDash] = useState(true);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetToken, setResetToken] = useState(null);
 
@@ -37,9 +42,9 @@ function App() {
         try {
             const res = await axios.get(`${API_BASE_URL}/areas`, config);
             if (res.data.success) setAreas(res.data.data);
-            else if (Array.isArray(res.data)) setAreas(res.data); 
-        } catch (err) { 
-            console.error("Error loading areas:", err); 
+            else if (Array.isArray(res.data)) setAreas(res.data);
+        } catch (err) {
+            console.error("Error loading areas:", err);
         }
     };
 
@@ -49,13 +54,13 @@ function App() {
         try {
             const res = await axios.get(`${API_BASE_URL}/sensors/logs`, config);
             if (res.data.success) setGlobalLogs(res.data.data);
-        } catch (err) { 
-            console.warn("Logs endpoint check failed."); 
+        } catch (err) {
+            console.warn("Logs endpoint check failed.");
         }
     };
 
     // --- Lifecycles & Sockets ---
-    
+
     // 1. Login Persistence on Mount
     useEffect(() => {
         const savedUser = localStorage.getItem('shade_app_user');
@@ -89,9 +94,9 @@ function App() {
     useEffect(() => {
         socket.on("connect", () => console.log("🟢 WebSocket Connected! ID:", socket.id));
         socket.on("disconnect", () => console.log("🔴 WebSocket Disconnected"));
-        
+
         socket.on("refresh_areas", () => {
-            if (user) loadAreas(); 
+            if (user) loadAreas();
         });
 
         socket.on("new_log", (newLogEntry) => {
@@ -111,29 +116,30 @@ function App() {
         if (selectedArea && areas.length > 0) {
             const updatedArea = areas.find(a => a.id === selectedArea.id);
             if (updatedArea && JSON.stringify(selectedArea) !== JSON.stringify(updatedArea)) {
-                 setSelectedArea(updatedArea);
+                setSelectedArea(updatedArea);
             }
         }
     }, [areas, selectedArea]);
 
     // --- Action Handlers ---
-    
+
     const handleLoginSuccess = (loggedInUser) => {
         setUser(loggedInUser);
         localStorage.setItem('shade_app_user', JSON.stringify(loggedInUser));
     };
 
-    const handleLogout = () => { 
-        setUser(null); 
-        setSelectedArea(null); 
+    const handleLogout = () => {
+        setUser(null);
+        setSelectedArea(null);
+        setView('map');
         localStorage.removeItem('shade_app_user');
         localStorage.removeItem('token');
     };
 
-    const goBackToMap = () => {
+    /** Switches panels, leaving any drilled-into room first. */
+    const goToView = (next) => {
         setSelectedArea(null);
-        setShowUserManagement(false);
-        setShowAlerts(false);
+        setView(prev => (prev === next ? 'map' : next));
     };
 
     const handleGlobalControl = async (newState) => {
@@ -143,107 +149,138 @@ function App() {
 
         try {
             await axios.put(`${API_BASE_URL}/areas/global/state`, { state: newState }, config);
-        } catch (err) { 
-            console.error(err); 
+        } catch (err) {
+            console.error(err);
         }
     };
 
     // --- Render ---
-    
+
     if (resetToken) return <ResetPassword token={resetToken} onBack={() => setResetToken(null)} />;
     if (!user && showForgotPassword) return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
     if (!user) return <Login onLogin={handleLoginSuccess} onForgotPassword={() => setShowForgotPassword(true)} />;
 
+    const isAdmin = user.role === 'admin';
+    const isStaff = isAdmin || user.role === 'maintenance';
+    const onMapView = view === 'map' && !selectedArea;
+
     return (
-        <NotificationProvider>
-            <div className="app-container">
-                
-                {/* 1. Header Navigation */}
-                <header className="app-header">
-                    
-                    {/* Left Side: Brand & Toggles */}
-                    <div className="header-brand">
-                         <div style={{ fontSize: '1.8rem' }}>☀️</div> 
-                         <div><h1>Smart Shade</h1></div>
-                         <button 
-                            onClick={() => setShowSmartDash(!showSmartDash)}
-                            className={`smart-dash-toggle ${showSmartDash ? 'active' : ''}`}
-                         >
-                            🧠 Algorithm {showSmartDash ? 'ON' : 'OFF'}
-                         </button>
-                    </div>
+        <div className="app-container">
 
-                    {/* Right Side: Global Controls & Navigation */}
-                    <div className="header-controls">
-                        
-                        {(user.role === 'admin' || user.role === 'maintenance') && !selectedArea && (
-                            <div className="global-controls">
-                                <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">⚡ Auto</button>
-                                <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">⬆ Open All</button>
-                                <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">⬇ Close All</button>
-                            </div>
-                        )}
+            {/* 1. Header Navigation */}
+            <header className="app-header">
 
-                        {!selectedArea && !showUserManagement && (
-                            <button onClick={() => setShowAlerts(!showAlerts)} className="header-btn">
-                                {showAlerts ? '🗺️ Map' : '🚨 Alerts'}
-                            </button>
-                        )}
-                        
-                        {user.role === 'admin' && !selectedArea && !showAlerts && (
-                            <button onClick={() => setShowUserManagement(!showUserManagement)} className="header-btn">
-                                {showUserManagement ? '🗺️ Map' : '⚙️ Manage'}
-                            </button>
-                        )}
-                        
-                        <button onClick={handleLogout} className="header-btn-logout">Logout</button>
-                    </div>
-                </header>
+                {/* Left Side: Brand & Toggles */}
+                <div className="header-brand">
+                    <div style={{ fontSize: '1.8rem' }}>☀️</div>
+                    <div><h1>{t('app.title')}</h1></div>
+                    <button
+                        onClick={() => setShowSmartDash(!showSmartDash)}
+                        className={`smart-dash-toggle ${showSmartDash ? 'active' : ''}`}
+                    >
+                        🧠 {t('app.algorithm')} {showSmartDash ? t('app.on') : t('app.off')}
+                    </button>
+                </div>
 
-                {/* 2. The Scientific Brain Ticker */}
-                {showSmartDash && !selectedArea && !showUserManagement && !showAlerts && (
-                    <div style={{ flexShrink: 0, zIndex: 10 }}>
-                        <SmartDashboard />
-                    </div>
-                )}
+                {/* Right Side: Global Controls & Navigation */}
+                <div className="header-controls">
 
-                {/* 3. Main Content Area */}
-                <div className="main-content-wrapper">
-                    
-                    <div className="map-section-container">
-                        {showUserManagement && user.role === 'admin' ? (
-                            <div className="admin-panels-wrapper">
-                                <SchedulerPanel />
-                                <UserManagement />
-                            </div>
-                        ) : showAlerts ? ( 
-                            <AlertsSystem user={user} areas={areas} />
-                        ) : selectedArea ? (
-                            <RoomDashboard 
-                                selectedArea={selectedArea}
-                                user={user}
-                                onBack={goBackToMap}
-                                onUpdate={loadAreas}
-                            />
-                        ) : (
-                            <CampusMap 
-                                areas={areas} 
-                                onSelectArea={setSelectedArea} 
-                                user={user} 
-                                onUpdateAreas={loadAreas} 
-                            />
-                        )
-                        }
-                    </div>
-
-                    {!selectedArea && !showUserManagement && !showAlerts && (
-                        <div className="sidebar-section-container">
-                            <ActivityLog logs={globalLogs} />
+                    {isStaff && onMapView && (
+                        <div className="global-controls">
+                            <button onClick={() => handleGlobalControl('AUTO')} className="header-btn-subtle">⚡ {t('app.auto')}</button>
+                            <button onClick={() => handleGlobalControl('OPEN')} className="header-btn-subtle">⬆ {t('app.openAll')}</button>
+                            <button onClick={() => handleGlobalControl('CLOSED')} className="header-btn-subtle">⬇ {t('app.closeAll')}</button>
                         </div>
                     )}
+
+                    {!selectedArea && (
+                        <>
+                            <button onClick={() => goToView('missions')} className="header-btn">
+                                {view === 'missions' ? `🗺️ ${t('app.map')}` : `🧰 ${t('app.missions')}`}
+                            </button>
+
+                            <button onClick={() => goToView('guides')} className="header-btn">
+                                {view === 'guides' ? `🗺️ ${t('app.map')}` : `📚 ${t('app.guides')}`}
+                            </button>
+
+                            <button onClick={() => goToView('alerts')} className="header-btn">
+                                {view === 'alerts' ? `🗺️ ${t('app.map')}` : `🚨 ${t('app.alerts')}`}
+                            </button>
+
+                            {isAdmin && (
+                                <button onClick={() => goToView('manage')} className="header-btn">
+                                    {view === 'manage' ? `🗺️ ${t('app.map')}` : `⚙️ ${t('app.manage')}`}
+                                </button>
+                            )}
+                        </>
+                    )}
+
+                    <LanguageSwitcher isAdmin={isAdmin} />
+
+                    <button onClick={handleLogout} className="header-btn-logout">{t('app.logout')}</button>
                 </div>
+            </header>
+
+            {/* 2. The Scientific Brain Ticker */}
+            {showSmartDash && onMapView && (
+                <div style={{ flexShrink: 0, zIndex: 10 }}>
+                    <SmartDashboard />
+                </div>
+            )}
+
+            {/* 3. Main Content Area */}
+            <div className="main-content-wrapper">
+
+                <div className="map-section-container">
+                    {selectedArea ? (
+                        <RoomDashboard
+                            selectedArea={selectedArea}
+                            user={user}
+                            onBack={() => setSelectedArea(null)}
+                            onUpdate={loadAreas}
+                        />
+                    ) : view === 'manage' && isAdmin ? (
+                        <div className="admin-panels-wrapper">
+                            <SchedulerPanel />
+                            <UserManagement />
+                        </div>
+                    ) : view === 'alerts' ? (
+                        <AlertsSystem user={user} areas={areas} />
+                    ) : view === 'missions' ? (
+                        <MissionsPanel user={user} areas={areas} />
+                    ) : view === 'guides' ? (
+                        <GuidesPanel user={user} />
+                    ) : (
+                        <CampusMap
+                            areas={areas}
+                            onSelectArea={setSelectedArea}
+                            user={user}
+                            onUpdateAreas={loadAreas}
+                        />
+                    )}
+                </div>
+
+                {onMapView && (
+                    <div className="sidebar-section-container">
+                        <ActivityLog logs={globalLogs} />
+                    </div>
+                )}
             </div>
-        </NotificationProvider>
+        </div>
+    );
+}
+
+/**
+ * Providers wrap the whole app so language and notifications are available
+ * on every screen, including the pre-login views.
+ */
+function App() {
+    return (
+        <LanguageProvider>
+            <NotificationProvider>
+                <AppContent />
+            </NotificationProvider>
+        </LanguageProvider>
     );
 }
 
