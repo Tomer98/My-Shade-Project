@@ -1,0 +1,206 @@
+/* ==========================================
+   Guides Panel — knowledge base with approval + ratings
+   ========================================== */
+
+.guides-panel {
+    padding: 1.5rem;
+    height: 100%;
+    overflow-y: auto;
+    background: #f7f9fb;
+}
+
+.guides-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.guides-header h3 { margin: 0; color: #2c3e50; }
+
+.guide-primary-btn,
+.guide-secondary-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.guide-primary-btn { background: #8e44ad; color: #fff; }
+.guide-secondary-btn { background: #fff; color: #34495e; border-color: #d6dde3; }
+.guide-primary-btn:hover:not(:disabled),
+.guide-secondary-btn:hover { filter: brightness(0.95); }
+.guide-primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Author form --- */
+.guide-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: #fff;
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.guide-form input[type="text"],
+.guide-form textarea {
+    padding: 0.6rem;
+    border: 1px solid #d6dde3;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.guide-file-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #566573;
+    cursor: pointer;
+}
+
+.guide-file-label input[type="file"] { display: none; }
+
+.guide-file-name {
+    font-size: 0.8rem;
+    color: #27ae60;
+}
+
+.guide-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* --- Guide cards --- */
+.guides-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.guide-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-top: 3px solid #8e44ad;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.guide-card.unapproved {
+    border-top-color: #f39c12;
+    background: #fffdf7;
+}
+
+.guide-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.guide-card-header h4 {
+    margin: 0;
+    color: #2c3e50;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.guide-card-header h4:hover { color: #8e44ad; }
+
+.guide-status {
+    flex-shrink: 0;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.guide-status.pending { background: #f39c12; }
+.guide-status.rejected { background: #e74c3c; }
+
+.guide-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.guide-sep { margin: 0 0.2rem; }
+
+.star-rating { display: inline-flex; }
+
+.star {
+    background: none;
+    border: none;
+    padding: 0 1px;
+    font-size: 0.95rem;
+    color: #dfe4e6;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.star.filled { color: #f1c40f; }
+.star:disabled { cursor: default; }
+.star:not(:disabled):hover { transform: scale(1.15); }
+
+.guide-rating-count { font-size: 0.75rem; }
+
+.guide-body {
+    font-size: 0.87rem;
+    color: #566573;
+    line-height: 1.5;
+    border-top: 1px solid #ecf0f1;
+    padding-top: 0.5rem;
+    white-space: pre-wrap;
+}
+
+.guide-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.guide-approve-btn,
+.guide-reject-btn,
+.guide-delete-btn {
+    padding: 0.35rem 0.7rem;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.guide-approve-btn { background: #27ae60; color: #fff; }
+.guide-reject-btn { background: #e74c3c; color: #fff; }
+.guide-delete-btn { background: #ecf0f1; color: #7f8c8d; margin-left: auto; }
+
+.guide-approve-btn:hover,
+.guide-reject-btn:hover,
+.guide-delete-btn:hover { filter: brightness(0.92); }
+
+.guides-empty {
+    text-align: center;
+    color: #95a5a6;
+    padding: 2rem 1rem;
+}
+
+@media (max-width: 600px) {
+    .guides-panel { padding: 1rem; }
+    .guides-grid { grid-template-columns: 1fr; }
+}
