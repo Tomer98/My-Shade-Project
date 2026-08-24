@@ -64,8 +64,31 @@ A sidebar showing all system events streamed in real time via Socket.io. Distinc
 ### Global Campus Control
 Admin and maintenance users can set the entire campus to AUTO, OPEN, or CLOSED with a single click from the header bar. Includes confirmation dialog to prevent accidental changes. Global actions are logged to the Activity Log.
 
+### Maintenance Missions (Field Checklists)
+Managers define recurring maintenance missions for any room: a title, a recurrence interval, and a subtask checklist. Workers see their own missions for the day in scheduled order, with a "Start my first mission" entry point and a live progress bar per mission.
+
+Inside a mission, each subtask is marked **Done (✓)** or **Cannot complete (✗)**. A failed subtask requires a written explanation and may carry a photo taken on the spot. Finishing a mission applies the spec's completion rule:
+- **All subtasks done** → mission is Completed and the next visit is scheduled automatically (`frequency_days` ahead), with the checklist copied forward.
+- **Any subtask failed** → mission is marked Failed and returns to the manager's Failed Missions queue for reassignment.
+
+A **Close Day** button rolls every still-open mission to tomorrow and halves its interval so overdue work surfaces sooner.
+
+### Location History
+Every room accumulates a visit history: who performed each past mission, when, and any comments or photos they left behind — visible from inside the mission view before the work starts.
+
+### Knowledge Base (Guides)
+Any user can author a guide with text and an attached photo/video. Guides enter a **Pending** state and only become visible to everyone once a manager or admin approves them. All users rate guides 1–5, and the list is ordered by average rating so the most useful guidance rises to the top.
+
+### Skills-Based Assignment
+Users carry a **speciality**, a **work area**, and an **availability** flag. The assignment dropdown ranks candidates the way a manager would — workers already operating in that area first, then those marked available, then whoever has the lightest workload — and shows each person's open-mission count inline.
+
+### Multilanguage (i18n)
+The interface ships in English and Hebrew, with full right-to-left layout support for Hebrew. Any user can pick their own language; an admin's selection also sets the system-wide default for users who haven't chosen one.
+
 ### Maintenance Alert System
 A full issue-tracking workflow: any authenticated user can report a problem (selecting room, description, and priority level from Low to Critical). Admins can assign maintenance staff to alerts. Both admins and maintenance users can mark issues as resolved. Alerts are displayed with color-coded priority borders and role-based action buttons.
+
+**Automatic service tickets:** when a worker marks a subtask as "cannot complete", the system opens a High-priority ticket automatically, pre-filled with the room, the timestamp, the mission and subtask names, and the worker's explanation — no separate reporting step needed.
 
 ### Automation Scheduler
 Admins and maintenance users can create time-based rules (e.g., "Close Classroom 216 at 18:00 every day"). The scheduler executes these rules automatically at the specified time, updates the shade state, and logs the event to the Activity Log in real time.
@@ -144,10 +167,11 @@ cd server
 npm test
 ```
 
-Runs 38 tests across three suites:
+Runs 59 tests across four suites:
 - **Decision Engine** (19 tests) — Extreme conditions, standard scoring, stepped thresholds, edge cases
 - **Weather Service** (4 tests) — Successful calls, retry behavior, client error handling, cache fallback
 - **API Integration** (15 tests) — Login flow, unauthenticated rejection, RBAC (what maintenance can and cannot do, admin full access)
+- **Missions & Guides** (21 tests) — Mission creation with checklists, subtask outcome rules, automatic service-ticket creation on failure, completion/reschedule vs. escalation, close-day scoping, guide approval workflow and rating validation
 
 ## Project Structure
 
@@ -164,8 +188,15 @@ My-Shade-Project/
 │   │   │   ├── CampusMap.jsx        # Interactive campus map with admin tools
 │   │   │   ├── CampusMap.css
 │   │   │   ├── ForgotPassword.jsx   # Password reset request form
+│   │   │   ├── GuidesPanel.jsx      # Knowledge base: authoring, approval, ratings
+│   │   │   ├── GuidesPanel.css
+│   │   │   ├── LanguageSwitcher.jsx # Per-user language + admin default
 │   │   │   ├── Login.jsx            # JWT authentication form (username or email)
 │   │   │   ├── Login.css
+│   │   │   ├── MissionDetail.jsx    # Subtask checklist, GPS nav, camera, history
+│   │   │   ├── MissionsPanel.jsx    # Daily missions, close day, skills-based assign
+│   │   │   ├── MissionsPanel.css
+│   │   │   ├── NewMissionForm.jsx   # Manager mission + checklist builder
 │   │   │   ├── ResetPassword.jsx    # New password form (token-based)
 │   │   │   ├── RoomDashboard.jsx    # Per-room control panel & simulation
 │   │   │   ├── RoomDashboard.css
@@ -181,6 +212,9 @@ My-Shade-Project/
 │   │   ├── context/
 │   │   │   ├── NotificationContext.jsx  # Global toast notification state
 │   │   │   └── Notification.css
+│   │   ├── i18n/
+│   │   │   ├── LanguageContext.jsx  # Locale state, RTL handling, t() helper
+│   │   │   └── translations.js      # English + Hebrew string catalogue
 │   │   ├── utils/
 │   │   │   ├── auth.js              # Shared JWT header helper
 │   │   │   └── getShadeColor.js     # Shade position → color mapping
@@ -199,6 +233,8 @@ My-Shade-Project/
 │   │   ├── areaController.js        # Room CRUD, shade state, simulation, image upload
 │   │   ├── alertController.js       # Alert lifecycle (create → assign → resolve)
 │   │   ├── authController.js        # JWT login, forgot password, reset password
+│   │   ├── guideController.js       # Knowledge base: approval workflow & ratings
+│   │   ├── missionController.js     # Missions, checklists, auto-tickets, close day
 │   │   ├── schedulerController.js   # Schedule CRUD with log sync
 │   │   ├── sensorController.js      # Sensor data ingestion & history queries
 │   │   └── userController.js        # User management (admin only)
@@ -209,6 +245,8 @@ My-Shade-Project/
 │   │   ├── areaRoutes.js            # /api/areas — rooms & shade control
 │   │   ├── alertRoutes.js           # /api/alerts — maintenance issues
 │   │   ├── authRoutes.js            # /api/auth — login, forgot/reset password
+│   │   ├── guideRoutes.js           # /api/guides — knowledge base
+│   │   ├── missionRoutes.js         # /api/missions — field missions & checklists
 │   │   ├── schedulerRoutes.js       # /api/schedules — automation rules
 │   │   ├── sensorRoutes.js          # /api/sensors — data ingestion & logs
 │   │   └── userRoutes.js            # /api/users — user management
@@ -223,7 +261,8 @@ My-Shade-Project/
 │   ├── __tests__/
 │   │   ├── decisionEngine.test.js       # 19 algorithm unit tests
 │   │   ├── weatherService.test.js       # 4 resilience & retry tests
-│   │   └── api.integration.test.js      # 15 auth & RBAC integration tests
+│   │   ├── api.integration.test.js      # 15 auth & RBAC integration tests
+│   │   └── missions.integration.test.js # 21 mission & guide workflow tests
 │   ├── scripts/
 │   │   └── multi_simulator.js       # Multi-room IoT sensor simulator
 │   ├── test.http                    # REST Client API test suite
@@ -244,7 +283,11 @@ My-Shade-Project/
 
 | Table | Purpose | Key Fields |
 |---|---|---|
-| **users** | Authentication & roles | username, password, email, role (admin/maintenance/planner), reset_token, reset_token_expires |
+| **users** | Authentication, roles & assignment attributes | username, password, email, role (admin/maintenance/planner), speciality, work_area, is_available, reset_token, reset_token_expires |
+| **missions** | Recurring maintenance jobs | area_id, title, frequency_days, scheduled_date, assigned_to, status (Open→InProgress→Completed/Failed) |
+| **mission_subtasks** | Per-mission checklist | mission_id, title, status (Pending/Done/Failed), comment, photo_path |
+| **guides** | Knowledge base with approval | title, content, media_path, author_id, status (Pending/Approved/Rejected), approved_by |
+| **guide_ratings** | Per-user guide ratings | guide_id, user_id, rating (1–5), unique per user+guide |
 | **areas** | Room definitions & state | room, shade_state, current_position, map_coordinates, sensor_positions, simulation cache fields |
 | **logs** | Activity history | area_id, temperature, light_intensity, current_position, action_type |
 | **weather_logs** | AI telemetry | temp, light_level, clouds, score, decision, reason |
@@ -278,9 +321,23 @@ My-Shade-Project/
 | GET | /api/schedules | List all schedules | Authenticated |
 | POST | /api/schedules | Create a schedule | Admin/Maintenance |
 | DELETE | /api/schedules/:id | Delete a schedule | Admin/Maintenance |
-| GET | /api/users | List all users (no passwords) | Admin |
+| GET | /api/users | List users with speciality, work area and open-mission workload | Admin |
 | POST | /api/users | Create a new user | Admin |
+| PUT | /api/users/:id | Update role, speciality, work area, or availability | Admin |
 | DELETE | /api/users/:id | Delete a user | Admin |
+| GET | /api/missions | List missions (`?scope=today`, `?status=Failed`) | Authenticated |
+| GET | /api/missions/history/:areaId | Location history — past visits, notes, photos | Authenticated |
+| POST | /api/missions | Create a mission with its subtask checklist | Admin/Maintenance |
+| PUT | /api/missions/:id/assign | Assign or reassign a mission | Admin/Maintenance |
+| PUT | /api/missions/subtasks/:id | Mark a subtask Done/Failed (+comment, +photo) | Authenticated |
+| PUT | /api/missions/:id/complete | Finish a mission — reschedules or escalates | Authenticated |
+| POST | /api/missions/close-day | Roll open missions to tomorrow | Authenticated |
+| DELETE | /api/missions/:id | Delete a mission | Admin |
+| GET | /api/guides | List guides, ordered by average rating | Authenticated |
+| POST | /api/guides | Submit a guide for approval (+media) | Authenticated |
+| PUT | /api/guides/:id/review | Approve or reject a pending guide | Admin/Maintenance |
+| POST | /api/guides/:id/rate | Rate a guide 1–5 | Authenticated |
+| DELETE | /api/guides/:id | Delete a guide | Author or Admin |
 
 ## Cloud Deployment
 
