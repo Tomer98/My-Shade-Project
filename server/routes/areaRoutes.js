@@ -39,6 +39,13 @@ router.post('/:id/image', verifyToken, checkRole(['admin']), upload.single('room
 router.put('/:id/map-coordinates', verifyToken, checkRole(['admin']), areaController.updateMapCoordinates);
 
 /**
+ * @route   PUT /:id/gps
+ * @desc    Set the room's real-world latitude/longitude for navigation
+ * @access  Private (Admin only)
+ */
+router.put('/:id/gps', verifyToken, checkRole(['admin']), areaController.updateGpsLocation);
+
+/**
  * @route   PUT /:id/sensor-positions
  * @desc    Update the positions of sensors within a specific area's layout
  * @access  Private (Admin only)

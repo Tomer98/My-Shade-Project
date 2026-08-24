@@ -289,3 +289,17 @@
         border-top: 1px solid #e0e0e0;
     }
 }
+/* --- Room GPS capture --- */
+.gps-status {
+    text-align: center;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.gps-set {
+    font-family: monospace;
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.gps-unset { color: #e67e22; }

@@ -38,6 +38,7 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     const [saveButtonText, setSaveButtonText] = useState('💾 Save');
     const [isUploading, setIsUploading] = useState(false);
     const [isSendingCommand, setIsSendingCommand] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
 
     // Real-Time Data Display
     const [displayTemp, setDisplayTemp] = useState(0);
@@ -229,6 +230,47 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
     };
 
     /**
+     * Record the room's real-world position so workers can navigate to it.
+     * Reads the device's GPS, which is accurate when an admin does this while
+     * standing at the room.
+     */
+    const handleCaptureGps = () => {
+        if (!navigator.geolocation) {
+            showNotification('This browser does not provide location services.', 'error');
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    await axios.put(`${API_BASE_URL}/areas/${selectedArea.id}/gps`, {
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                    }, getAuthHeader());
+
+                    showNotification('Room GPS location saved.', 'success');
+                    if (onUpdate) onUpdate();
+                } catch (error) {
+                    console.error('GPS save failed:', error);
+                    showNotification('Failed to save GPS location.', 'error');
+                } finally {
+                    setIsLocating(false);
+                }
+            },
+            (err) => {
+                setIsLocating(false);
+                // Secure-context failures are the common case here, so name them
+                const reason = err.code === err.PERMISSION_DENIED
+                    ? 'Location permission denied (HTTPS is required for GPS).'
+                    : 'Could not read your location.';
+                showNotification(reason, 'error');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    /**
      * Handle room map image upload.
      */
     const handleFileSelect = async (e) => {
@@ -390,6 +432,30 @@ const RoomDashboard = ({ selectedArea, user, onBack, onUpdate }) => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Room GPS — required for mission navigation */}
+                    {user?.role === 'admin' && (
+                        <div className="control-card">
+                            <h3>📍 Room Location</h3>
+                            <div className="gps-status">
+                                {selectedArea.latitude != null && selectedArea.longitude != null ? (
+                                    <span className="gps-set">
+                                        {Number(selectedArea.latitude).toFixed(5)}, {Number(selectedArea.longitude).toFixed(5)}
+                                    </span>
+                                ) : (
+                                    <span className="gps-unset">Not set — Navigate is disabled for this room</span>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleCaptureGps}
+                                disabled={isLocating}
+                                className="action-btn secondary"
+                                style={{ width: '100%' }}
+                            >
+                                {isLocating ? 'Reading GPS...' : '🛰️ Use my current location'}
+                            </button>
+                        </div>
+                    )}
 
                     {/* History View Button */}
                     <div className="control-card">
