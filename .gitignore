@@ -8,12 +8,13 @@ node_modules/
 
 # Security & Environment
 # Prevent sensitive keys, passwords, and local configs from leaking.
+# The trailing-* rules also cover manual backups such as .env.backup-2026-01-01.
 .env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Uploads & Assets
 # Ignore dynamic user uploads but keep the directory structure.
