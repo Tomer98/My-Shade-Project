@@ -19,6 +19,8 @@ const alertRoutes = require('./routes/alertRoutes');
 const schedulerRoutes = require('./routes/schedulerRoutes');
 const missionRoutes = require('./routes/missionRoutes');
 const guideRoutes = require('./routes/guideRoutes');
+const equipmentRoutes = require('./routes/equipmentRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -73,6 +75,8 @@ app.use('/api/schedules', schedulerRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/missions', missionRoutes);
 app.use('/api/guides', guideRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/reports', reportRoutes);
 
 // ==========================================
 // 🚨 Fallback & Error Handling
