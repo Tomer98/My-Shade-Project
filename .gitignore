@@ -42,3 +42,7 @@ yarn-error.log*
 .vscode/
 .idea/
 Thumbs.db
+# Built Android packages (build output, not source)
+dist-android/
+*.apk
+*.aab
