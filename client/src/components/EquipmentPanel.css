@@ -1,0 +1,176 @@
+/* ==========================================
+   Equipment Panel — serviceable assets per room
+   ========================================== */
+
+.equipment-panel {
+    padding: 1.5rem;
+    height: 100%;
+    overflow-y: auto;
+    background: #f7f9fb;
+}
+
+.equipment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.equipment-header h3 { margin: 0; color: #2c3e50; }
+
+.equipment-header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.equipment-primary-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: none;
+    background: #16a085;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.equipment-primary-btn:hover { filter: brightness(0.93); }
+
+.equipment-filter {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #d6dde3;
+    font-size: 0.85rem;
+}
+
+/* --- Add form --- */
+.equipment-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.6rem;
+    background: #fff;
+    padding: 1.1rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.equipment-form input,
+.equipment-form select {
+    padding: 0.55rem;
+    border: 1px solid #d6dde3;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    font-family: inherit;
+}
+
+/* --- Cards --- */
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.equipment-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid #27ae60;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.equipment-card.status-needsservice { border-left-color: #f39c12; background: #fffdf7; }
+.equipment-card.status-outoforder  { border-left-color: #e74c3c; background: #fdf7f7; }
+
+.equipment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.equipment-card-header h4 { margin: 0; color: #2c3e50; font-size: 1rem; }
+
+.equipment-type {
+    flex-shrink: 0;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    background: #ecf0f1;
+    color: #566573;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.equipment-meta {
+    font-size: 0.82rem;
+    color: #7f8c8d;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.equipment-open { color: #d35400; font-weight: 600; }
+
+.equipment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.equipment-status-select {
+    flex: 1;
+    padding: 0.35rem;
+    border-radius: 5px;
+    border: 1px solid #d6dde3;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.equipment-status-select.operational   { color: #27ae60; }
+.equipment-status-select.needsservice  { color: #d35400; }
+.equipment-status-select.outoforder    { color: #c0392b; }
+
+.equipment-status-badge {
+    flex: 1;
+    padding: 0.3rem 0.6rem;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+}
+
+.equipment-status-badge.operational  { background: #27ae60; }
+.equipment-status-badge.needsservice { background: #f39c12; }
+.equipment-status-badge.outoforder   { background: #e74c3c; }
+
+.equipment-delete-btn {
+    padding: 0.3rem 0.6rem;
+    border: none;
+    border-radius: 5px;
+    background: #ecf0f1;
+    color: #7f8c8d;
+    cursor: pointer;
+}
+
+.equipment-delete-btn:hover { background: #e74c3c; color: #fff; }
+
+.equipment-empty {
+    text-align: center;
+    color: #95a5a6;
+    padding: 2rem 1rem;
+}
+
+[dir="rtl"] .equipment-card { border-left: none; border-right: 4px solid #27ae60; }
+[dir="rtl"] .equipment-card.status-needsservice { border-right-color: #f39c12; }
+[dir="rtl"] .equipment-card.status-outoforder  { border-right-color: #e74c3c; }
+
+@media (max-width: 600px) {
+    .equipment-panel { padding: 1rem; }
+    .equipment-grid { grid-template-columns: 1fr; }
+}
