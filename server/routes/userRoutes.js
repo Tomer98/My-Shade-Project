@@ -25,6 +25,13 @@ router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 
 /**
+ * @route   PUT /:id/review
+ * @desc    Approve or reject a self-registered account
+ * @access  Private (Admin only)
+ */
+router.put('/:id/review', userController.reviewUser);
+
+/**
  * @route   PUT /:id
  * @desc    Update an existing user's role/permission
  * @access  Private (Admin only)

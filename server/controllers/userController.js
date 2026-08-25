@@ -12,20 +12,58 @@ const SALT_ROUNDS = 10; // Cost factor: higher = slower to crack, slower to hash
  */
 exports.getAllUsers = async (req, res) => {
     try {
-        // open_missions is the workload signal a manager uses to judge availability
+        // open_missions is the workload signal a manager uses to judge availability.
+        // Results are scoped to the caller's company so tenants stay separate.
         const [rows] = await db.query(
-            `SELECT u.id, u.username, u.role, u.speciality, u.work_area, u.is_available, u.created_at,
+            `SELECT u.id, u.username, u.email, u.role, u.status, u.speciality, u.work_area,
+                    u.is_available, u.company_id, c.name AS company_name, u.created_at,
                     COUNT(m.id) AS open_missions
              FROM users u
+             LEFT JOIN companies c ON u.company_id = c.id
              LEFT JOIN missions m
                     ON m.assigned_to = u.id AND m.status IN ('Open', 'InProgress')
+             WHERE u.company_id = ?
              GROUP BY u.id
-             ORDER BY u.id`
+             ORDER BY FIELD(u.status, 'Pending', 'Active', 'Rejected'), u.id`,
+            [req.user.companyId ?? 1]
         );
         res.json({ success: true, data: rows });
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ success: false, message: 'Failed to fetch users' });
+    }
+};
+
+/**
+ * Approve or reject a self-registered account.
+ * @param {string} req.params.id - The user awaiting review.
+ * @param {string} req.body.status - 'Active' to approve, 'Rejected' to refuse.
+ */
+exports.reviewUser = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['Active', 'Rejected'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'status must be Active or Rejected' });
+    }
+
+    try {
+        const [result] = await db.query(
+            'UPDATE users SET status = ? WHERE id = ? AND company_id = ?',
+            [status, id, req.user.companyId ?? 1]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({
+            success: true,
+            message: status === 'Active' ? 'User approved' : 'Registration rejected'
+        });
+    } catch (error) {
+        console.error("Error reviewing user:", error);
+        res.status(500).json({ success: false, message: 'Failed to review user' });
     }
 };
 
@@ -43,9 +81,13 @@ exports.createUser = async (req, res) => {
         // Hash the password before storing — bcrypt adds a random salt automatically
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
+        // Admin-created accounts are usable immediately — the approval step
+        // exists for self-registration, not for accounts an admin made itself.
         await db.query(
-            'INSERT INTO users (username, password, role, speciality, work_area) VALUES (?, ?, ?, ?, ?)',
-            [username, hashedPassword, role, speciality || null, work_area || null]
+            `INSERT INTO users (username, password, role, speciality, work_area, company_id, status)
+             VALUES (?, ?, ?, ?, ?, ?, 'Active')`,
+            [username, hashedPassword, role, speciality || null, work_area || null,
+             req.user.companyId ?? 1]
         );
         res.json({ success: true, message: 'User created successfully' });
     } catch (error) {

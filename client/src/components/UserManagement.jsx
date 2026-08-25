@@ -106,6 +106,27 @@ const UserManagement = () => {
     };
 
     /**
+     * Approves or rejects a self-registered account.
+     * @param {number|string} id - The applicant.
+     * @param {string} status - 'Active' to approve, 'Rejected' to refuse.
+     */
+    const handleReview = async (id, status) => {
+        const config = getAuthHeader();
+        if (!config) return;
+
+        try {
+            const res = await axios.put(`${API_BASE_URL}/users/${id}/review`, { status }, config);
+            if (res.data.success) {
+                showNotification(res.data.message, 'success');
+                fetchUsers();
+            }
+        } catch (err) {
+            console.error('Error reviewing user:', err);
+            showNotification('Failed to review the registration.', 'error');
+        }
+    };
+
+    /**
      * Marks a worker as available or unavailable for new assignments.
      * @param {number|string} id - The user to update.
      * @param {boolean} isAvailable - The new availability state.
@@ -194,9 +215,17 @@ const UserManagement = () => {
                     </thead>
                     <tbody>
                         {users.map(user => (
-                            <tr key={user.id}>
+                            <tr key={user.id} className={user.status === 'Pending' ? 'row-pending' : ''}>
                                 <td>{user.id}</td>
-                                <td>{user.username}</td>
+                                <td>
+                                    {user.username}
+                                    {user.status === 'Pending' && (
+                                        <span className="pending-badge">Pending</span>
+                                    )}
+                                    {user.status === 'Rejected' && (
+                                        <span className="rejected-badge">Rejected</span>
+                                    )}
+                                </td>
                                 <td>
                                     <select
                                         className={`role-badge ${getRoleClass(user.role)}`}
@@ -223,9 +252,28 @@ const UserManagement = () => {
                                     </button>
                                 </td>
                                 <td>
-                                    <button onClick={() => handleDelete(user.id)} className="delete-btn" title="Delete User">
-                                        🗑️
-                                    </button>
+                                    {user.status === 'Pending' ? (
+                                        <div className="review-actions">
+                                            <button
+                                                className="approve-btn"
+                                                onClick={() => handleReview(user.id, 'Active')}
+                                                title="Approve registration"
+                                            >
+                                                ✅
+                                            </button>
+                                            <button
+                                                className="reject-btn"
+                                                onClick={() => handleReview(user.id, 'Rejected')}
+                                                title="Reject registration"
+                                            >
+                                                ✖
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => handleDelete(user.id)} className="delete-btn" title="Delete User">
+                                            🗑️
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
