@@ -120,3 +120,39 @@
 .availability-toggle.free { background: #27ae60; }
 .availability-toggle.busy { background: #95a5a6; }
 .availability-toggle:hover { filter: brightness(0.92); }
+
+/* --- Self-registration approval queue --- */
+.row-pending { background: #fffdf3; }
+
+.pending-badge,
+.rejected-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #fff;
+    vertical-align: middle;
+}
+
+.pending-badge  { background: #f39c12; }
+.rejected-badge { background: #95a5a6; }
+
+[dir="rtl"] .pending-badge,
+[dir="rtl"] .rejected-badge { margin-left: 0; margin-right: 8px; }
+
+.review-actions { display: flex; gap: 5px; justify-content: center; }
+
+.approve-btn,
+.reject-btn {
+    padding: 3px 9px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.approve-btn { background: #27ae60; color: #fff; }
+.reject-btn  { background: #e74c3c; color: #fff; }
+.approve-btn:hover, .reject-btn:hover { filter: brightness(0.9); }

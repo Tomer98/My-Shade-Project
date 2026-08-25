@@ -36,9 +36,29 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid username or password' });
         }
 
+        // A self-registered account cannot be used until an admin approves it.
+        // Checked after the password so the response reveals nothing to guessers.
+        if (user.status === 'Pending') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account is waiting for administrator approval.'
+            });
+        }
+        if (user.status === 'Rejected') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your registration was not approved. Please contact an administrator.'
+            });
+        }
+
         const secretKey = process.env.JWT_SECRET;
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role },
+            {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                companyId: user.company_id,
+            },
             secretKey,
             { expiresIn: '24h' }
         );
@@ -54,6 +74,72 @@ exports.login = async (req, res) => {
     } catch (error) {
         console.error("❌ Login Error:", error);
         return res.status(500).json({ success: false, message: 'Internal server error during login' });
+    }
+};
+
+/**
+ * Sign Up
+ * Self-registration for a new maintenance worker. The account is created in
+ * the Pending state and cannot log in until an administrator approves it,
+ * which is the "user approval" step the specification gives the admin role.
+ */
+exports.signup = async (req, res) => {
+    const { username, password, email, company_id, speciality, work_area } = req.body;
+
+    if (!username || !password || !email) {
+        return res.status(400).json({
+            success: false,
+            message: 'Username, password and email are required'
+        });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const [existing] = await db.query(
+            'SELECT id FROM users WHERE username = ? OR email = ?',
+            [username, email]
+        );
+        if (existing.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: 'That username or email is already registered'
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Self-registration always creates a maintenance worker: granting
+        // anything higher is an administrator's decision, not the applicant's.
+        await db.query(
+            `INSERT INTO users (username, password, email, role, status, company_id, speciality, work_area)
+             VALUES (?, ?, ?, 'maintenance', 'Pending', ?, ?, ?)`,
+            [username, hashedPassword, email, company_id || 1, speciality || null, work_area || null]
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: 'Registration received. An administrator will review your account.'
+        });
+    } catch (error) {
+        console.error('❌ Signup Error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error during signup' });
+    }
+};
+
+/**
+ * List the companies a new user can register against.
+ * Public because it populates the signup form.
+ */
+exports.getCompanies = async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT id, name FROM companies ORDER BY name');
+        return res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('❌ Companies Error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch companies' });
     }
 };
 

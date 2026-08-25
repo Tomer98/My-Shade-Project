@@ -83,3 +83,13 @@
     background: #fff;
     color: #34495e;
 }
+
+.signup-select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-family: inherit;
+}

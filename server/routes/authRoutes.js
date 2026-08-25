@@ -15,6 +15,20 @@ const authController = require('../controllers/authController');
 router.post('/login', authController.login);
 
 /**
+ * @route   POST /signup
+ * @desc    Self-registration; the account waits for administrator approval
+ * @access  Public
+ */
+router.post('/signup', authController.signup);
+
+/**
+ * @route   GET /companies
+ * @desc    Companies a new user can register against (populates the signup form)
+ * @access  Public
+ */
+router.get('/companies', authController.getCompanies);
+
+/**
  * @route   POST /forgot-password
  * @desc    Generate a reset token and send a reset email
  * @access  Public

@@ -10,7 +10,7 @@ import './Login.css';
  * Handles user authentication, capturing username and password, 
  * and passing the authenticated user data (including token) back to the parent.
  */
-const Login = ({ onLogin, onForgotPassword }) => {
+const Login = ({ onLogin, onForgotPassword, onSignUp }) => {
     const { t } = useLanguage();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -71,6 +71,13 @@ const Login = ({ onLogin, onForgotPassword }) => {
                         style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', marginTop: '0.5rem', fontSize: '0.85rem' }}
                     >
                         {t('login.forgot')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSignUp}
+                        style={{ background: 'none', border: 'none', color: '#3498db', cursor: 'pointer', marginTop: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                        {t('signup.link')}
                     </button>
                 </form>
                 {/* Error message display, styles are managed in Login.css */}
