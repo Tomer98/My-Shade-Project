@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
+import SignUp from './components/SignUp';
 import ResetPassword from './components/ResetPassword';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -14,6 +15,8 @@ import SchedulerPanel from './components/SchedulerPanel';
 import ActivityLog from './components/ActivityLog';
 import MissionsPanel from './components/MissionsPanel';
 import GuidesPanel from './components/GuidesPanel';
+import EquipmentPanel from './components/EquipmentPanel';
+import ReportsPanel from './components/ReportsPanel';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { getAuthHeader } from './utils/auth';
 import { API_BASE_URL } from './config';
@@ -33,6 +36,7 @@ function AppContent() {
     const [view, setView] = useState('map');
     const [showSmartDash, setShowSmartDash] = useState(true);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [showSignUp, setShowSignUp] = useState(false);
     const [resetToken, setResetToken] = useState(null);
 
     // --- Data Fetching ---
@@ -158,7 +162,14 @@ function AppContent() {
 
     if (resetToken) return <ResetPassword token={resetToken} onBack={() => setResetToken(null)} />;
     if (!user && showForgotPassword) return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
-    if (!user) return <Login onLogin={handleLoginSuccess} onForgotPassword={() => setShowForgotPassword(true)} />;
+    if (!user && showSignUp) return <SignUp onBack={() => setShowSignUp(false)} />;
+    if (!user) return (
+        <Login
+            onLogin={handleLoginSuccess}
+            onForgotPassword={() => setShowForgotPassword(true)}
+            onSignUp={() => setShowSignUp(true)}
+        />
+    );
 
     const isAdmin = user.role === 'admin';
     const isStaff = isAdmin || user.role === 'maintenance';
@@ -203,9 +214,19 @@ function AppContent() {
                                 {view === 'guides' ? `🗺️ ${t('app.map')}` : `📚 ${t('app.guides')}`}
                             </button>
 
+                            <button onClick={() => goToView('equipment')} className="header-btn">
+                                {view === 'equipment' ? `🗺️ ${t('app.map')}` : `🔧 ${t('app.equipment')}`}
+                            </button>
+
                             <button onClick={() => goToView('alerts')} className="header-btn">
                                 {view === 'alerts' ? `🗺️ ${t('app.map')}` : `🚨 ${t('app.alerts')}`}
                             </button>
+
+                            {isStaff && (
+                                <button onClick={() => goToView('reports')} className="header-btn">
+                                    {view === 'reports' ? `🗺️ ${t('app.map')}` : `📊 ${t('app.reports')}`}
+                                </button>
+                            )}
 
                             {isAdmin && (
                                 <button onClick={() => goToView('manage')} className="header-btn">
@@ -250,6 +271,10 @@ function AppContent() {
                         <MissionsPanel user={user} areas={areas} />
                     ) : view === 'guides' ? (
                         <GuidesPanel user={user} />
+                    ) : view === 'equipment' ? (
+                        <EquipmentPanel user={user} areas={areas} />
+                    ) : view === 'reports' && isStaff ? (
+                        <ReportsPanel />
                     ) : (
                         <CampusMap
                             areas={areas}
