@@ -1,0 +1,213 @@
+/* ==========================================
+   Reports Panel — aggregate views for managers
+   ========================================== */
+
+.reports-panel {
+    padding: 1.5rem;
+    height: 100%;
+    overflow-y: auto;
+    background: #f7f9fb;
+}
+
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.reports-header h3 { margin: 0; color: #2c3e50; }
+
+.reports-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.reports-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.78rem;
+    color: #7f8c8d;
+    font-weight: 600;
+}
+
+.reports-controls input {
+    padding: 0.45rem;
+    border: 1px solid #d6dde3;
+    border-radius: 5px;
+    font-size: 0.85rem;
+}
+
+.reports-btn {
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    border: none;
+    background: #2980b9;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.reports-btn.subtle { background: #ecf0f1; color: #34495e; }
+.reports-btn:hover:not(:disabled) { filter: brightness(0.93); }
+.reports-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Headline tiles --- */
+.reports-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.stat-tile {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-top: 3px solid #2980b9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-tile.good { border-top-color: #27ae60; }
+.stat-tile.bad  { border-top-color: #e74c3c; }
+
+.stat-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.78rem;
+    color: #7f8c8d;
+}
+
+/* --- Chart cards --- */
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.report-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.report-card.wide { grid-column: 1 / -1; }
+
+.report-card h4 {
+    margin: 0 0 0.85rem;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.report-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.report-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.87rem;
+    color: #566573;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #f2f4f6;
+}
+
+.report-list li:last-child { border-bottom: none; }
+.report-list li strong { margin-left: auto; color: #2c3e50; }
+
+[dir="rtl"] .report-list li strong { margin-left: 0; margin-right: auto; }
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* --- Row table --- */
+.report-rows-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.report-rows-header h4 { margin: 0; }
+
+.report-table-wrapper {
+    overflow-x: auto;
+    margin-top: 0.85rem;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.report-table th,
+.report-table td {
+    padding: 0.5rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid #f2f4f6;
+    white-space: nowrap;
+}
+
+[dir="rtl"] .report-table th,
+[dir="rtl"] .report-table td { text-align: right; }
+
+.report-table th {
+    color: #7f8c8d;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.row-status {
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+    background: #95a5a6;
+}
+
+.row-status.completed  { background: #27ae60; }
+.row-status.failed     { background: #e74c3c; }
+.row-status.open       { background: #3498db; }
+.row-status.inprogress { background: #f39c12; }
+
+.reports-empty {
+    text-align: center;
+    color: #95a5a6;
+    padding: 1.5rem 1rem;
+    font-size: 0.87rem;
+}
+
+@media (max-width: 600px) {
+    .reports-panel { padding: 1rem; }
+    .reports-grid { grid-template-columns: 1fr; }
+}
