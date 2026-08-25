@@ -54,15 +54,18 @@ exports.getMissions = async (req, res) => {
             params.push(req.query.status);
         }
 
-        const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+        // Always confine results to the caller's company
+        conditions.push('a.company_id = ?');
+        params.push(req.user.companyId ?? 1);
 
         const [missions] = await db.query(
             `SELECT m.*, a.room AS room_name, a.latitude, a.longitude,
-                    u.username AS assigned_to_name
+                    u.username AS assigned_to_name, e.name AS equipment_name
              FROM missions m
              JOIN areas a ON m.area_id = a.id
              LEFT JOIN users u ON m.assigned_to = u.id
-             ${where}
+             LEFT JOIN equipment e ON m.equipment_id = e.id
+             ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
              ORDER BY m.scheduled_date ASC, m.id ASC`,
             params
         );
@@ -137,7 +140,8 @@ exports.getAreaHistory = async (req, res) => {
  * Create a mission with its subtask checklist.
  */
 exports.createMission = async (req, res) => {
-    const { area_id, title, description, frequency_days, scheduled_date, assigned_to, subtasks } = req.body;
+    const { area_id, title, description, frequency_days, scheduled_date,
+            assigned_to, subtasks, equipment_id } = req.body;
 
     if (!area_id || !title || !scheduled_date) {
         return res.status(400).json({ success: false, message: 'area_id, title and scheduled_date are required' });
@@ -145,9 +149,10 @@ exports.createMission = async (req, res) => {
 
     try {
         const [result] = await db.query(
-            `INSERT INTO missions (area_id, title, description, frequency_days, scheduled_date, assigned_to, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [area_id, title, description || null, frequency_days || 30, scheduled_date, assigned_to || null, req.user.id]
+            `INSERT INTO missions (area_id, title, description, frequency_days, scheduled_date, assigned_to, created_by, equipment_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [area_id, title, description || null, frequency_days || 30, scheduled_date,
+             assigned_to || null, req.user.id, equipment_id || null]
         );
 
         const missionId = result.insertId;
