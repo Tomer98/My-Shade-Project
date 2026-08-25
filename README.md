@@ -85,6 +85,18 @@ Users carry a **speciality**, a **work area**, and an **availability** flag. The
 ### Multilanguage (i18n)
 The interface ships in English and Hebrew, with full right-to-left layout support for Hebrew. Any user can pick their own language; an admin's selection also sets the system-wide default for users who haven't chosen one.
 
+### Self-Registration & Approval
+New maintenance workers register themselves from the login screen, choosing their company and optionally declaring a speciality and work area. The account is created in a **Pending** state and cannot log in until an administrator approves it — pending registrations sort to the top of the user table with approve/reject controls.
+
+### Equipment Management
+Serviceable assets are registered against a room with a serial number, type and install date, and carry a service status (Operational / Needs service / Out of order). Items needing attention sort to the top, status can be changed inline, and a mission can target a specific asset so history ties back to the equipment rather than just the location.
+
+### Reports (Database Questioning)
+Managers query maintenance activity over any date range: completion rate, missions per worker split by outcome, load per room, equipment condition, issues by priority, and the subtasks that fail most often. The underlying mission records are listed beneath the charts and export to CSV.
+
+### Multi-Tenancy
+Every user, room, mission and asset belongs to a company. All queries are scoped to the caller's company, so tenants never see each other's data — the JWT carries the company, and it is enforced server-side rather than filtered in the UI.
+
 ### Maintenance Alert System
 A full issue-tracking workflow: any authenticated user can report a problem (selecting room, description, and priority level from Low to Critical). Admins can assign maintenance staff to alerts. Both admins and maintenance users can mark issues as resolved. Alerts are displayed with color-coded priority borders and role-based action buttons.
 
@@ -167,11 +179,12 @@ cd server
 npm test
 ```
 
-Runs 59 tests across four suites:
+Runs 89 tests across five suites:
 - **Decision Engine** (19 tests) — Extreme conditions, standard scoring, stepped thresholds, edge cases
 - **Weather Service** (4 tests) — Successful calls, retry behavior, client error handling, cache fallback
 - **API Integration** (15 tests) — Login flow, unauthenticated rejection, RBAC (what maintenance can and cannot do, admin full access)
-- **Missions & Guides** (21 tests) — Mission creation with checklists, subtask outcome rules, automatic service-ticket creation on failure, completion/reschedule vs. escalation, close-day scoping, guide approval workflow and rating validation
+- **Missions & Guides** (26 tests) — Mission creation with checklists, subtask outcome rules, automatic service-ticket creation on failure, completion/reschedule vs. escalation, close-day scoping, guide approval workflow, rating validation, and GPS coordinate validation
+- **Signup, Equipment & Reports** (25 tests) — Registration validation, login gating on approval status, admin approval scoped by company, equipment RBAC and status validation, report aggregation and multi-tenant scoping
 
 ## Project Structure
 
@@ -288,6 +301,9 @@ My-Shade-Project/
 | **mission_subtasks** | Per-mission checklist | mission_id, title, status (Pending/Done/Failed), comment, photo_path |
 | **guides** | Knowledge base with approval | title, content, media_path, author_id, status (Pending/Approved/Rejected), approved_by |
 | **guide_ratings** | Per-user guide ratings | guide_id, user_id, rating (1–5), unique per user+guide |
+| **companies** | Tenants the system supervises | name; every user, room and asset belongs to one |
+| **work_areas** | Named zones within a company | name, company_id |
+| **equipment** | Serviceable assets in a room | name, serial_number, equipment_type, area_id, status (Operational/NeedsService/OutOfOrder) |
 | **areas** | Room definitions & state | room, shade_state, current_position, map_coordinates, sensor_positions, simulation cache fields |
 | **logs** | Activity history | area_id, temperature, light_intensity, current_position, action_type |
 | **weather_logs** | AI telemetry | temp, light_level, clouds, score, decision, reason |
@@ -333,6 +349,15 @@ My-Shade-Project/
 | PUT | /api/missions/:id/complete | Finish a mission — reschedules or escalates | Authenticated |
 | POST | /api/missions/close-day | Roll open missions to tomorrow | Authenticated |
 | DELETE | /api/missions/:id | Delete a mission | Admin |
+| POST | /api/auth/signup | Self-register; account awaits admin approval | Public |
+| GET | /api/auth/companies | Companies available at registration | Public |
+| PUT | /api/users/:id/review | Approve or reject a registration | Admin |
+| GET | /api/equipment | List equipment (`?area_id=`, `?status=`) | Authenticated |
+| POST | /api/equipment | Register equipment | Admin/Maintenance |
+| PUT | /api/equipment/:id | Update details or service status | Admin/Maintenance |
+| DELETE | /api/equipment/:id | Remove equipment | Admin |
+| GET | /api/reports/summary | Aggregate figures (`?from=&to=`) | Admin/Maintenance |
+| GET | /api/reports/missions | Row-level mission export | Admin/Maintenance |
 | GET | /api/guides | List guides, ordered by average rating | Authenticated |
 | POST | /api/guides | Submit a guide for approval (+media) | Authenticated |
 | PUT | /api/guides/:id/review | Approve or reject a pending guide | Admin/Maintenance |
