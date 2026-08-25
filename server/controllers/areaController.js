@@ -11,7 +11,11 @@ const { uploadFile } = require('../services/storageService');
  */
 exports.getAllAreas = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT *, room as name FROM areas');
+        // Scoped to the caller's company so tenants never see each other's rooms
+        const [rows] = await db.query(
+            'SELECT *, room as name FROM areas WHERE company_id = ?',
+            [req.user.companyId ?? 1]
+        );
         const areas = rows.map(area => {
             // Safe parsing of coordinate JSON strings
             try {
@@ -60,11 +64,13 @@ exports.createArea = async (req, res) => {
         const initialSensor = JSON.stringify([{ id: 'default-1', x: 50, y: 50 }]);
         
         const sql = `
-            INSERT INTO areas (room, description, map_file_path, map_coordinates, sensor_position, shade_state, current_position) 
-            VALUES (?, ?, ?, ?, ?, "AUTO", 0)
+            INSERT INTO areas (room, description, map_file_path, map_coordinates, sensor_position, shade_state, current_position, company_id)
+            VALUES (?, ?, ?, ?, ?, "AUTO", 0, ?)
         `;
-        
-        const [result] = await db.query(sql, [room, description, imagePath, coordsToSave, initialSensor]);
+
+        const [result] = await db.query(sql, [
+            room, description, imagePath, coordsToSave, initialSensor, req.user.companyId ?? 1
+        ]);
         
         // Log the creation event
         try {
