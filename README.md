@@ -1,6 +1,11 @@
 # Smart Shade — Campus Shade Automation System
 
-A full-stack IoT-inspired system that automates window shade positions across a university campus using real-time weather data, configurable sensor input, and a weighted scoring algorithm. Built as a final project at Holon Institute of Technology (HIT).
+A full-stack, multi-tenant facilities platform built as a final project at Holon Institute of Technology (HIT). It does two things at once:
+
+- **Automates** window shade positions across a campus from live weather data and a weighted scoring algorithm, in real time.
+- **Manages the maintenance** around that equipment — field missions with subtask checklists, an approved knowledge base, asset tracking, and reporting.
+
+It ships as a responsive web app for managers and an installable **Android app** (Capacitor) for field workers, in English and Hebrew.
 
 ![Diagram](smart_shade_architecture.svg)
 
@@ -18,13 +23,15 @@ The system follows a **sensor → decision → actuator** loop that runs continu
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19, Vite (Rolldown), React Router v7, Socket.io Client, Recharts, Chart.js, Axios |
-| Backend | Node.js, Express 5, Socket.io, node-cron, JWT (jsonwebtoken), Multer, Nodemailer |
-| Database | MySQL 8.0 with connection pooling (mysql2) |
+| Frontend | React 19, Vite (Rolldown), Socket.io Client, Recharts, Axios |
+| Mobile | Capacitor 8 (Android) with native Camera and Geolocation plugins |
+| Backend | Node.js, Express 5, Socket.io, node-cron, JWT (jsonwebtoken), Multer, Nodemailer, bcrypt |
+| Database | MySQL 8.0 with connection pooling (mysql2), versioned SQL migrations |
 | External API | OpenWeatherMap — with retry, exponential backoff, and cache fallback |
 | Infrastructure | Docker Compose (dev: MySQL + Node.js), AWS EC2 (server), AWS RDS (MySQL), AWS S3 (file storage), Vercel (frontend), Cloudflare Tunnel (HTTPS) |
-| Security | Helmet (HTTP headers), express-rate-limit, JWT authentication, role-based access control (RBAC) |
-| Testing | Jest, Supertest — Decision Engine unit tests, Weather Service resilience tests, API integration tests (auth + RBAC) |
+| Security | JWT auth, 3-role RBAC, per-company tenant scoping, Helmet, express-rate-limit, bcrypt hashing |
+| Internationalisation | English + Hebrew with full RTL layout; admin-set system default |
+| Testing | Jest + Supertest (89 server tests), Vitest (12 client tests) |
 
 ## Features
 
@@ -152,6 +159,8 @@ npm run dev
 # Open: http://localhost:5173
 ```
 
+New workers can also **register themselves** from the login screen; the account stays Pending until an admin approves it.
+
 **Default login credentials** (local development only — change before any public deployment):
 
 | Username | Role |
@@ -161,13 +170,47 @@ npm run dev
 | Bob | Maintenance |
 | Dana | Planner |
 
+### Database Migrations
+
+`schema.sql` only runs when MySQL initialises a **brand-new** data volume. An
+existing database never sees it, so schema changes ship as numbered migrations
+that are safe to re-run:
+
+```bash
+# Against the Docker database
+docker compose exec -T mysqldb mysql -uroot -p"$MYSQL_ROOT_PASSWORD" shade_system_test   < server/database/migrations/001_missions_and_guides.sql
+# ...then 002_area_gps_coordinates.sql, 003_companies_signup_equipment.sql
+
+# Against AWS RDS
+mysql -h <rds-endpoint> -u <user> -p shade_system_test < server/database/migrations/00X_*.sql
+```
+
+| Migration | Adds |
+|---|---|
+| `001_missions_and_guides` | missions, mission_subtasks, guides, guide_ratings; user speciality/work area/availability |
+| `002_area_gps_coordinates` | real latitude/longitude on areas, for navigation |
+| `003_companies_signup_equipment` | companies, work_areas, equipment; user approval status; mission→equipment link |
+
+### Building the Android App
+
+```bash
+cd client
+cp .env.android.example .env.android    # point it at a server the phone can reach
+npm run android:apk                     # → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The packaged app has no dev-server proxy, so `.env.android` **must** hold
+absolute URLs (a Cloudflare tunnel or your EC2 host). `config.js` logs an error
+at startup if a relative URL was baked in by mistake.
+
 ### Running the Multi-Room Simulator
 
 To demo the full automation pipeline without real IoT hardware, open a third terminal:
 
 ```bash
 cd server
-node scripts/multi_simulator.js
+node scripts/multi_simulator.js          # simulates every room in the database
+node scripts/multi_simulator.js 1 2 10   # or specific room ids
 ```
 
 This generates random weather scenarios (summer heat, winter sun, extreme glare, neutral day) for multiple rooms every 4 seconds. Watch the Activity Log and campus map update in real time as the decision engine responds to each scenario.
