@@ -10,6 +10,29 @@ CREATE DATABASE shade_system_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_
 USE shade_system_test;
 
 -- ==========================================
+-- 0. 🏛️ COMPANIES (TENANTS)
+-- Every user, room and asset belongs to one. Declared first because the
+-- tables below carry a foreign key to it.
+-- ==========================================
+CREATE TABLE companies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO companies (id, name) VALUES (1, 'HIT - Holon Institute of Technology');
+
+-- Named zones within a company, used when assigning work by location
+CREATE TABLE work_areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    company_id INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_area_per_company (company_id, name),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+-- ==========================================
 -- 1. 👥 USERS TABLE
 -- ==========================================
 CREATE TABLE users (
@@ -18,14 +41,18 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     role ENUM('admin', 'maintenance', 'planner') DEFAULT 'planner',
+    -- Self-registered accounts wait for an administrator's approval
+    status ENUM('Pending', 'Active', 'Rejected') NOT NULL DEFAULT 'Active',
     -- Assignment attributes: what a worker is qualified for, where they operate,
     -- and whether they are currently taking work.
     speciality VARCHAR(255) DEFAULT NULL,
     work_area VARCHAR(255) DEFAULT NULL,
     is_available BOOLEAN DEFAULT TRUE,
+    company_id INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reset_token VARCHAR(255) NULL,
-    reset_token_expires DATETIME NULL
+    reset_token_expires DATETIME NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
 
@@ -55,7 +82,27 @@ CREATE TABLE areas (
     is_simulation BOOLEAN DEFAULT FALSE,
     sim_temp FLOAT DEFAULT 25.0,
     sim_light FLOAT DEFAULT 500.0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    company_id INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+-- ==========================================
+-- 2b. 🔧 EQUIPMENT
+-- Serviceable assets installed in a room; a mission can target one directly.
+-- ==========================================
+CREATE TABLE equipment (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    serial_number VARCHAR(255) DEFAULT NULL,
+    equipment_type VARCHAR(100) DEFAULT NULL,
+    area_id INT NULL,
+    company_id INT NOT NULL DEFAULT 1,
+    status ENUM('Operational', 'NeedsService', 'OutOfOrder') DEFAULT 'Operational',
+    installed_at DATE DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE SET NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
 INSERT INTO areas (building_number, floor, room, description, map_coordinates) VALUES 
@@ -141,11 +188,14 @@ CREATE TABLE missions (
     assigned_to INT NULL,
     status ENUM('Open', 'InProgress', 'Completed', 'Failed') DEFAULT 'Open',
     created_by INT NULL,
+    -- Optional: the specific asset this visit services, rather than the whole room
+    equipment_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,
     FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE SET NULL
 );
 
 -- Checklist items belonging to a mission. A worker marks each Done or Failed;
