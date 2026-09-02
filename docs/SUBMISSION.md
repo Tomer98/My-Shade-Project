@@ -20,7 +20,7 @@
 | **המערכת החיה** | https://my-shade-project.vercel.app |
 | **מסלול הדגמה** | `docs/presentation-runbook-he.html` |
 
-**כניסה להדגמה:** `Tom` / `password123`
+**כניסה להדגמה:** משתמש `Tom`. הסיסמה נקבעת בזמן זריעת הנתונים ומודפסת בסיום — ראו הוראות ההרצה למטה.
 
 ## מוסד
 
@@ -55,8 +55,8 @@ cd client
 npm install
 npm run dev              # http://localhost:5173
 
-# נתוני הדגמה
-docker compose exec server node scripts/seed_demo.js
+# נתוני הדגמה — מדפיס בסיום את פרטי ההתחברות
+DEMO_PASSWORD=<בחר-סיסמה> docker compose exec server node scripts/seed_demo.js
 ```
 
 ## בדיקות

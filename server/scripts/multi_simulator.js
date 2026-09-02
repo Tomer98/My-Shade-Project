@@ -29,8 +29,15 @@ async function resolveTargetIds() {
     const fromArgs = process.argv.slice(2).map(Number).filter(Number.isInteger);
     if (fromArgs.length > 0) return fromArgs;
 
-    const username = process.env.SIM_USER || 'Tom';
-    const password = process.env.SIM_PASS || 'password123';
+    const username = process.env.SIM_USER;
+    const password = process.env.SIM_PASS;
+
+    if (!username || !password) {
+        throw new Error(
+            'discovery needs SIM_USER and SIM_PASS, or pass room ids directly: ' +
+            'node scripts/multi_simulator.js 1 2 3'
+        );
+    }
 
     const login = await axios.post(`${API_BASE}/auth/login`, { username, password });
     const token = login.data.token;
