@@ -34,7 +34,7 @@ jobs:
           JWT_SECRET: test_secret
           DB_HOST: localhost
           DB_USER: root
-          DB_PASSWORD: password123
+          DB_PASSWORD: unused_the_db_is_mocked
           DB_NAME: shade_system_test
           WEATHER_API_KEY: fake_key
           WEATHER_CITY: Holon,IL

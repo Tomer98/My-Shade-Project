@@ -14,9 +14,17 @@
  */
 require('dotenv').config();
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const db = require('../config/db');
 
 const TAG = '[demo]'; // marks rows this script owns
+
+// The password every seeded account gets. Taken from the environment so the
+// repository never carries a working credential; when unset a random one is
+// generated and printed at the end, which keeps the seeded data usable without
+// publishing a password anyone could try against a live deployment.
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD
+    || crypto.randomBytes(9).toString('base64url');
 
 /** Returns the id of a room, creating it when absent. */
 async function ensureRoom(room, description, lat, lng, coords) {
@@ -38,16 +46,18 @@ async function ensureRoom(room, description, lat, lng, coords) {
 /** Returns the id of a user, creating it when absent. */
 async function ensureUser(username, { email, role, status, speciality, work_area }) {
     const [existing] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
+    const password = await bcrypt.hash(DEMO_PASSWORD, 10);
 
     if (existing.length > 0) {
+        // The password is reset too, so re-seeding always leaves every demo
+        // account on the password this run printed. Without it a previously
+        // seeded account would silently keep an older one.
         await db.query(
-            'UPDATE users SET role = ?, status = ?, speciality = ?, work_area = ? WHERE id = ?',
-            [role, status, speciality, work_area, existing[0].id]
+            'UPDATE users SET password = ?, role = ?, status = ?, speciality = ?, work_area = ? WHERE id = ?',
+            [password, role, status, speciality, work_area, existing[0].id]
         );
         return existing[0].id;
     }
-
-    const password = await bcrypt.hash('password123', 10);
     const [res] = await db.query(
         `INSERT INTO users (username, password, email, role, status, speciality, work_area, company_id, is_available)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, TRUE)`,
@@ -232,7 +242,10 @@ async function seed() {
         [auditorium, dana, `${TAG} Shade on the east side rattles audibly in wind`]);
 
     console.log('\n✅ Demo data ready.\n');
-    console.log('   Sign in as Tom / password123');
+    console.log(`   Sign in as  Tom  /  ${DEMO_PASSWORD}`);
+    if (!process.env.DEMO_PASSWORD) {
+        console.log('   (generated for this run — set DEMO_PASSWORD to choose your own)');
+    }
     console.log('   Maya is awaiting approval in Manage');
     console.log('   One mission is failed and waiting in the manager queue\n');
 
