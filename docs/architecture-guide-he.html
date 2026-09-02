@@ -1,0 +1,1150 @@
+<title>ארכיטקטורת Smart Shade</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&family=Frank+Ruhl+Libre:wght@500;700;900&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ── Tokens: light is the base, both themes defined at token level ── */
+  :root {
+    --ground:      #F7F8FA;
+    --surface:     #FFFFFF;
+    --surface-alt: #EFF2F6;
+    --ink:         #14181F;
+    --ink-soft:    #3A434F;
+    --muted:       #5C6672;
+    --border:      #E2E6EB;
+    --accent:      #0F6E56;
+    --accent-soft: #E1F5EE;
+    --warm:        #B4690E;
+    --warm-soft:   #FAEEDB;
+    --violet:      #534AB7;
+    --violet-soft: #EEEDFE;
+    --danger:      #A8331B;
+    --danger-soft: #FAEEE7;
+    --code-bg:     #F2F4F7;
+
+    --f-display: "Frank Ruhl Libre", "Times New Roman", serif;
+    --f-body:    "Assistant", "Segoe UI", system-ui, sans-serif;
+    --f-mono:    "JetBrains Mono", "Consolas", monospace;
+
+    --measure: 74ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0F1319;
+      --surface:     #171C24;
+      --surface-alt: #1E242E;
+      --ink:         #E8EBEF;
+      --ink-soft:    #C6CCD5;
+      --muted:       #98A2AE;
+      --border:      #262D38;
+      --accent:      #4FD1A5;
+      --accent-soft: #12312A;
+      --warm:        #E8A33D;
+      --warm-soft:   #33260F;
+      --violet:      #A79FF0;
+      --violet-soft: #221F3D;
+      --danger:      #F0866B;
+      --danger-soft: #331A14;
+      --code-bg:     #10151C;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0F1319;
+    --surface:     #171C24;
+    --surface-alt: #1E242E;
+    --ink:         #E8EBEF;
+    --ink-soft:    #C6CCD5;
+    --muted:       #98A2AE;
+    --border:      #262D38;
+    --accent:      #4FD1A5;
+    --accent-soft: #12312A;
+    --warm:        #E8A33D;
+    --warm-soft:   #33260F;
+    --violet:      #A79FF0;
+    --violet-soft: #221F3D;
+    --danger:      #F0866B;
+    --danger-soft: #331A14;
+    --code-bg:     #10151C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.75;
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 clamp(18px, 4vw, 40px) 100px;
+  }
+
+  /* ── Masthead ── */
+  header.masthead {
+    padding: clamp(48px, 9vw, 96px) 0 40px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 48px;
+  }
+
+  .eyebrow {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 0 0 16px;
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 900;
+    font-size: clamp(38px, 7vw, 66px);
+    line-height: 1.08;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  .standfirst {
+    font-size: clamp(17px, 2.2vw, 20px);
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0;
+    font-weight: 300;
+  }
+
+  /* ── Contents ── */
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 56px;
+  }
+
+  nav.toc h2 {
+    font-family: var(--f-body);
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    border: none;
+    padding: 0;
+  }
+
+  nav.toc ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    columns: 2;
+    column-gap: 36px;
+  }
+
+  @media (max-width: 620px) { nav.toc ol { columns: 1; } }
+
+  nav.toc li {
+    counter-increment: toc;
+    margin-bottom: 7px;
+    break-inside: avoid;
+    font-size: 15.5px;
+  }
+
+  nav.toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--accent);
+    margin-left: 10px;
+  }
+
+  nav.toc { counter-reset: toc; }
+
+  nav.toc a { color: var(--ink-soft); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+
+  /* ── Sections ── */
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(26px, 4vw, 36px);
+    line-height: 1.2;
+    margin: 0 0 10px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    text-wrap: balance;
+  }
+
+  h2 .num {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    font-family: var(--f-body);
+    font-weight: 700;
+    font-size: 19px;
+    margin: 34px 0 10px;
+    color: var(--ink);
+  }
+
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 16px; }
+
+  ul, ol.body-list { padding-right: 22px; margin: 0 0 18px; }
+  li { margin-bottom: 8px; }
+
+  strong { font-weight: 700; }
+
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    direction: ltr;
+    display: inline-block;
+    unicode-bidi: embed;
+  }
+
+  pre {
+    direction: ltr;
+    text-align: left;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 20px;
+  }
+
+  pre code { background: none; border: none; padding: 0; display: inline; }
+
+  /* ── Callouts ── */
+  .why {
+    background: var(--accent-soft);
+    border-right: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 0 0 20px;
+    max-width: var(--measure);
+  }
+
+  .why p:last-child { margin-bottom: 0; }
+
+  .why .lbl {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .warn {
+    background: var(--warm-soft);
+    border-right: 3px solid var(--warm);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 0 0 20px;
+    max-width: var(--measure);
+  }
+
+  .warn p:last-child { margin-bottom: 0; }
+
+  .warn .lbl {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--warm);
+    margin-bottom: 6px;
+  }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; margin: 0 0 22px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    min-width: 460px;
+  }
+
+  th, td {
+    text-align: right;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--ink);
+    white-space: nowrap;
+  }
+
+  td code { font-size: 0.82em; }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Flow ── */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+    margin: 0 0 22px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    direction: rtl;
+  }
+
+  .flow .step {
+    flex: 1 1 130px;
+    background: var(--surface-alt);
+    border-radius: 7px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .flow .step b {
+    display: block;
+    font-size: 12.5px;
+    color: var(--accent);
+    margin-bottom: 3px;
+    font-weight: 700;
+  }
+
+  .flow .arw {
+    align-self: center;
+    color: var(--muted);
+    font-size: 17px;
+  }
+
+  @media (max-width: 640px) {
+    .flow .arw { transform: rotate(90deg); }
+  }
+
+  /* ── Stat row ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 0 0 26px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 16px 14px;
+    text-align: center;
+  }
+
+  .stat .v {
+    display: block;
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat .k {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  footer.end {
+    border-top: 2px solid var(--ink);
+    padding-top: 22px;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">מדריך מערכת · HIT</p>
+  <h1>ארכיטקטורת Smart Shade</h1>
+  <p class="standfirst">
+    כל מה שצריך לדעת על המערכת — מה היא עושה, איך היא בנויה, ולמה כל החלטה
+    תכנונית נלקחה כפי שנלקחה. המסמך מסודר משכבת־העל כלפי מטה, כך שאפשר לקרוא
+    אותו ברצף או לקפוץ לנושא.
+  </p>
+</header>
+
+<div class="stats">
+  <div class="stat"><span class="v">49</span><span class="k">נקודות קצה</span></div>
+  <div class="stat"><span class="v">10</span><span class="k">טבלאות</span></div>
+  <div class="stat"><span class="v">101</span><span class="k">בדיקות</span></div>
+  <div class="stat"><span class="v">3</span><span class="k">תפקידי משתמש</span></div>
+  <div class="stat"><span class="v">2</span><span class="k">שפות ממשק</span></div>
+</div>
+
+<nav class="toc">
+  <h2>תוכן העניינים</h2>
+  <ol>
+    <li><a href="#s1">מה המערכת עושה</a></li>
+    <li><a href="#s2">מבנה כללי ומסלול בקשה</a></li>
+    <li><a href="#s3">שכבת השרת — MVC</a></li>
+    <li><a href="#s4">אימות והרשאות</a></li>
+    <li><a href="#s5">ריבוי־דיירים</a></li>
+    <li><a href="#s6">מנוע ההחלטות</a></li>
+    <li><a href="#s7">זמן אמת</a></li>
+    <li><a href="#s8">משימות תחזוקה</a></li>
+    <li><a href="#s9">מאגר הידע</a></li>
+    <li><a href="#s10">ציוד ודוחות</a></li>
+    <li><a href="#s11">שירותים חיצוניים</a></li>
+    <li><a href="#s12">בסיס נתונים ומיגרציות</a></li>
+    <li><a href="#s13">אפליקציית אנדרואיד</a></li>
+    <li><a href="#s14">אסטרטגיית בדיקות</a></li>
+    <li><a href="#s15">אבטחה — סיכום</a></li>
+    <li><a href="#s16">החלטות מפתח וההתלבטויות</a></li>
+  </ol>
+</nav>
+
+<!-- ═══ 1 ═══ -->
+<section id="s1">
+  <h2><span class="num">01</span>מה המערכת עושה</h2>
+
+  <p>
+    המערכת עושה <strong>שני דברים שונים</strong> שחולקים אותה תשתית, וזה ההסבר
+    הראשון שצריך לתת לכל מי ששואל עליה:
+  </p>
+
+  <h3>א. אוטומציה בזמן אמת</h3>
+  <p>
+    המערכת שולטת אוטומטית במצב התריסים בחדרי הקמפוס. כל 5 שניות היא מושכת נתוני
+    מזג אוויר חיים, מחשבת ציון לכל חדר לפי אלגוריתם משוקלל, ומעדכנת את מיקום
+    התריס — ומשדרת את השינוי לכל הדפדפנים המחוברים דרך WebSocket.
+  </p>
+
+  <h3>ב. ניהול התחזוקה סביב הציוד</h3>
+  <p>
+    בנוסף, המערכת מנהלת את עבודת התחזוקה: משימות שדה עם צ׳ק־ליסט של תת־משימות,
+    מאגר ידע עם אישור מנהל, מעקב אחר ציוד, ודוחות. איש התחזוקה עובד מהטלפון
+    (אפליקציית אנדרואיד), והמנהל מהדפדפן.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה שני הדברים יחד</span>
+    <p>
+      זו לא הרחבה מלאכותית. ציוד שהמערכת מפעילה אוטומטית הוא בדיוק הציוד שדורש
+      תחזוקה — כשמנוע תריס נתקע, האוטומציה מפסיקה לעבוד. חיבור השניים אומר
+      שתקלה שדווחה בשדה קשורה ישירות לחדר ולפריט הציוד שהאלגוריתם מנסה להפעיל.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 2 ═══ -->
+<section id="s2">
+  <h2><span class="num">02</span>מבנה כללי ומסלול בקשה</h2>
+
+  <p>המערכת בנויה בשכבות. כל בקשה עוברת את אותו מסלול:</p>
+
+  <div class="flow">
+    <div class="step"><b>לקוח</b>דפדפן / אנדרואיד / חיישן</div>
+    <div class="arw">←</div>
+    <div class="step"><b>Cloudflare</b>HTTPS</div>
+    <div class="arw">←</div>
+    <div class="step"><b>Express</b>אימות · הרשאות · דייר</div>
+    <div class="arw">←</div>
+    <div class="step"><b>Controller</b>ולידציה · לוגיקה</div>
+    <div class="arw">←</div>
+    <div class="step"><b>MySQL</b>שאילתה מפורמטת</div>
+  </div>
+
+  <p>
+    שלושה סוגי לקוחות פונים לאותו API: אפליקציית האנדרואיד, לקוח הווב, וחיישני
+    ה־IoT. זה עיקרון חשוב — <strong>אין לוגיקה עסקית בצד הלקוח</strong>. כל
+    הכללים (מי רשאי מה, מתי משימה מסתיימת, איזה ציון מחושב) יושבים בשרת, ולכן
+    שלושת הלקוחות מתנהגים זהה ואי אפשר לעקוף כלל דרך ה־UI.
+  </p>
+</section>
+
+<!-- ═══ 3 ═══ -->
+<section id="s3">
+  <h2><span class="num">03</span>שכבת השרת — MVC</h2>
+
+  <p>השרת מחולק לשלוש שכבות עם אחריות ברורה:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr><th>שכבה</th><th>תפקיד</th><th>דוגמה</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Routes</strong></td>
+        <td>מגדירים כתובת, ומחילים middleware של אימות והרשאה</td>
+        <td><code>missionRoutes.js</code></td>
+      </tr>
+      <tr>
+        <td><strong>Controllers</strong></td>
+        <td>ולידציה של קלט, לוגיקה עסקית, החזרת תשובת HTTP</td>
+        <td><code>missionController.js</code></td>
+      </tr>
+      <tr>
+        <td><strong>Services</strong></td>
+        <td>לוגיקה שאינה קשורה ל־HTTP וניתנת לבדיקה בנפרד</td>
+        <td><code>decisionEngine.js</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="why">
+    <span class="lbl">למה להפריד services</span>
+    <p>
+      <code>decisionEngine.js</code> הוא פונקציה טהורה — נכנסים טמפרטורה, אור
+      ותנאי מזג אוויר, יוצא ציון. אין בו HTTP ואין בו בסיס נתונים. בזכות זה אפשר
+      לבדוק אותו ב־19 בדיקות יחידה מהירות בלי להרים שרת או DB. אילו הלוגיקה
+      הייתה יושבת בתוך ה־controller, כל בדיקה הייתה דורשת בקשת HTTP מלאה.
+    </p>
+  </div>
+
+  <p>
+    האפליקציה מפוצלת בכוונה בין <code>app.js</code> (הגדרת Express, middleware,
+    routes) לבין <code>index.js</code> (יצירת שרת HTTP, Socket.io, הפעלת
+    ה־scheduler). ההפרדה הזו היא מה שמאפשר לבדיקות האינטגרציה לייבא את
+    <code>app</code> ולשלוח אליו בקשות אמיתיות <em>בלי</em> לפתוח פורט ובלי
+    להפעיל את ה־cron.
+  </p>
+</section>
+
+<!-- ═══ 4 ═══ -->
+<section id="s4">
+  <h2><span class="num">04</span>אימות והרשאות</h2>
+
+  <h3>איך ההתחברות עובדת</h3>
+  <ol class="body-list">
+    <li>המשתמש שולח שם משתמש (או אימייל) וסיסמה.</li>
+    <li>השרת שולף את המשתמש ומשווה עם <code>bcrypt.compare</code>.</li>
+    <li>אם הסיסמה נכונה — נבדק סטטוס האישור של החשבון.</li>
+    <li>מונפק JWT עם <code>id</code>, <code>username</code>, <code>role</code> ו־<code>companyId</code>, בתוקף 24 שעות.</li>
+  </ol>
+
+  <div class="why">
+    <span class="lbl">למה בדיקת הסטטוס אחרי הסיסמה</span>
+    <p>
+      זו החלטת אבטחה, לא סדר מקרי. אילו היינו בודקים קודם את הסטטוס, תוקף היה
+      יכול לנחש שמות משתמש: תשובת "ממתין לאישור" מסגירה שהחשבון קיים. כשהבדיקה
+      מגיעה <em>אחרי</em> אימות הסיסמה, מי שלא יודע את הסיסמה מקבל תמיד 401 זהה
+      ולא לומד דבר. יש על זה בדיקה ייעודית.
+    </p>
+  </div>
+
+  <h3>שלושה תפקידים</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>תפקיד</th><th>מה מותר</th></tr></thead>
+    <tbody>
+      <tr><td><strong>admin</strong></td><td>הכול: ניהול משתמשים, אישור הרשמות, מחיקת חדרים וציוד</td></tr>
+      <tr><td><strong>maintenance</strong></td><td>ביצוע משימות, יצירת משימות וציוד, אישור מדריכים, דוחות</td></tr>
+      <tr><td><strong>planner</strong></td><td>צפייה ודיווח תקלות בלבד</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>
+    ההרשאות נאכפות בשני middleware: <code>verifyToken</code> מאמת את החתימה של
+    ה־JWT ומצרף את המשתמש ל־<code>req.user</code>, ואחריו
+    <code>checkRole([...])</code> בודק שהתפקיד ברשימה המותרת. הסדר קריטי —
+    <code>checkRole</code> חייב לרוץ אחרי <code>verifyToken</code>, אחרת אין
+    <code>req.user</code> לבדוק.
+  </p>
+
+  <pre><code>router.post('/', verifyToken, checkRole(['admin']), controller.create);</code></pre>
+
+  <h3>הרשמה עצמית ואישור</h3>
+  <p>
+    עובד חדש נרשם בעצמו ממסך ההתחברות. החשבון נוצר בסטטוס
+    <code>Pending</code> ואינו יכול להתחבר עד שמנהל מאשר אותו. שתי נקודות
+    חשובות: המשתמש <strong>לא יכול לבחור לעצמו תפקיד</strong> — הרשמה עצמית
+    תמיד יוצרת <code>maintenance</code>; ומחיקת/אישור מוגבלים לחברה של המנהל.
+  </p>
+</section>
+
+<!-- ═══ 5 ═══ -->
+<section id="s5">
+  <h2><span class="num">05</span>ריבוי־דיירים (Multi-Tenancy)</h2>
+
+  <p>
+    המערכת מיועדת לשרת כמה חברות במקביל. כל משתמש, חדר, משימה ופריט ציוד שייך
+    לחברה אחת, ואף חברה לא רואה נתונים של אחרת.
+  </p>
+
+  <h3>איך זה נאכף</h3>
+  <p>
+    ה־<code>companyId</code> נכנס ל־JWT בזמן ההתחברות. כל שאילתה מסננת לפיו:
+  </p>
+
+  <pre><code>const [rows] = await db.query(
+  'SELECT * FROM areas WHERE company_id = ?',
+  [req.user.companyId]
+);</code></pre>
+
+  <div class="why">
+    <span class="lbl">למה בשרת ולא בממשק</span>
+    <p>
+      זו הנקודה החשובה ביותר בסעיף הזה, וסביר שישאלו עליה. אילו היינו מביאים את
+      כל החדרים ומסננים ב־React, כל אחד היה יכול לפתוח את כלי הפיתוח, לקרוא את
+      תגובת הרשת, ולראות את הנתונים של כל החברות. הסינון ב־UI הוא <em>תצוגה</em>,
+      לא אבטחה. מכיוון שהחברה מגיעה מה־JWT החתום ולא מפרמטר שהלקוח שולח, הלקוח
+      גם לא יכול להתחזות לחברה אחרת — שינוי הטוקן יפסול את החתימה.
+    </p>
+  </div>
+
+  <p>
+    בדקנו את הבידוד בפועל: יצרנו חברה שנייה עם מנהל וחדר משלה, והמנהל שלה ראה
+    אך ורק את החדר שלו — לא את החדרים, המשתמשים, הציוד או המשימות של החברה
+    הראשונה.
+  </p>
+</section>
+
+<!-- ═══ 6 ═══ -->
+<section id="s6">
+  <h2><span class="num">06</span>מנוע ההחלטות</h2>
+
+  <p>הלב האלגוריתמי של המערכת. הקלט: טמפרטורה, עוצמת אור, ותנאי מזג אוויר.</p>
+
+  <h3>שלב 1 — תנאי קיצון עוקפים את הנוסחה</h3>
+  <p>
+    גשם או סערה, חום מעל 35°C, או קור מתחת ל־10°C — כל אחד מהם מביא לסגירה
+    מלאה מיידית (ציון 1.0), בלי לחשב כלום.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה עוקפים</span>
+    <p>
+      בסערה אין טעם לשקלל אור מול טמפרטורה — התשובה הנכונה היא תמיד להגן על
+      הציוד. עקיפה מפורשת גם קלה בהרבה להסבר ולבדיקה מאשר לנסות "לכייל" את
+      הנוסחה כך שתחזיר במקרה את התוצאה הנכונה.
+    </p>
+  </div>
+
+  <h3>שלב 2 — ציון משוקלל</h3>
+  <pre><code>normTemp  = (temp - 20) / (35 - 20)      // 0..1
+normLight = light / 80000                // 0..1
+score     = 0.6 * normTemp + 0.4 * normLight</code></pre>
+
+  <p>
+    הטמפרטורה מקבלת משקל גבוה יותר (60%) כי היא מה שמשפיע ישירות על נוחות
+    בחדר; האור (40%) משפיע על סנוור אבל פחות על החום עצמו.
+  </p>
+
+  <h3>שלב 3 — הצמדה למדרגות</h3>
+  <p>
+    הציון הרציף מוצמד לאחת מחמש מדרגות: 0%, 25%, 50%, 75%, 100%.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה מדרגות ולא רצף</span>
+    <p>
+      מנוע תריס פיזי לא אמור לזוז ב־1% כל חמש שניות — זה בלאי מיותר ורעש.
+      מדרגות מבטיחות שהתריס זז רק כשיש שינוי משמעותי בתנאים.
+    </p>
+  </div>
+
+  <h3>שלב 4 — היסטרזיס</h3>
+  <p>
+    בנוסף למדרגות, שינוי של פחות מ־5% נבלע לגמרי, והמערכת זוכרת את סוג הפעולה
+    האחרונה לכל חדר כדי לא לכתוב עדכון זהה שוב ושוב.
+  </p>
+</section>
+
+<!-- ═══ 7 ═══ -->
+<section id="s7">
+  <h2><span class="num">07</span>זמן אמת</h2>
+
+  <p>שני מנגנונים משלימים:</p>
+
+  <h3>node-cron — כל 5 שניות</h3>
+  <p>
+    ה־scheduler מושך מזג אוויר, מריץ כל חדר דרך מנוע ההחלטות, מעדכן את בסיס
+    הנתונים, ומשדר. הוא גם מריץ את המשימות המתוזמנות (למשל "סגור את אולם
+    ההרצאות ב־20:00").
+  </p>
+
+  <div class="warn">
+    <span class="lbl">שים לב</span>
+    <p>
+      ריצה כל 5 שניות <em>אינה</em> אומרת קריאה ל־API של מזג האוויר כל 5 שניות.
+      לשירות מזג האוויר יש מטמון של 10 דקות — אחרת היינו שורפים את מכסת ה־API
+      תוך שעה. מה שכן מחושב מחדש בכל סבב הוא עוצמת האור, כי היא תלויה בשעה
+      ובזווית השמש.
+    </p>
+  </div>
+
+  <h3>Socket.io — דחיפה ללקוחות</h3>
+  <p>
+    כשמשהו משתנה, השרת משדר אירוע (<code>refresh_areas</code>,
+    <code>new_log</code>, <code>refresh_missions</code>) וכל הדפדפנים המחוברים
+    מתעדכנים מיד.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה WebSocket ולא polling</span>
+    <p>
+      ב־polling הלקוח שואל "יש חדש?" כל כמה שניות — רוב הפעמים התשובה היא לא,
+      וזה בזבוז של בקשות ותעבורה שגדל ליניארית עם מספר המשתמשים. עם WebSocket
+      החיבור נשאר פתוח והשרת מדבר רק כשבאמת קרה משהו.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 8 ═══ -->
+<section id="s8">
+  <h2><span class="num">08</span>משימות תחזוקה</h2>
+
+  <p>זהו התהליך המרכזי במפרט, ומה שהכי סביר שישאלו עליו לעומק.</p>
+
+  <h3>מחזור החיים</h3>
+  <div class="flow">
+    <div class="step"><b>Open</b>נוצרה והוקצתה</div>
+    <div class="arw">←</div>
+    <div class="step"><b>InProgress</b>סומנה תת־משימה</div>
+    <div class="arw">←</div>
+    <div class="step"><b>Completed / Failed</b>העובד סיים</div>
+  </div>
+
+  <h3>כלל הסיום</h3>
+  <p>כשהעובד לוחץ "סיים משימה", השרת בודק את כל תת־המשימות:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>מצב</th><th>תוצאה</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>כולן <strong>Done</strong></td>
+        <td>המשימה <code>Completed</code>, ונוצרת משימה חדשה אוטומטית בעוד <code>frequency_days</code> יום — עם העתק של הצ׳ק־ליסט</td>
+      </tr>
+      <tr>
+        <td>לפחות אחת <strong>Failed</strong></td>
+        <td>המשימה <code>Failed</code> וחוזרת לתור של המנהל. <strong>לא</strong> נוצרת משימה חדשה</td>
+      </tr>
+      <tr>
+        <td>נשארו <strong>Pending</strong></td>
+        <td>הבקשה נדחית ב־400 — אי אפשר לסיים משימה חלקית</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="why">
+    <span class="lbl">למה כישלון לא מתזמן מחדש</span>
+    <p>
+      אם המנוע נתקע, אין טעם לקבוע ביקור חוזר בעוד 30 יום — צריך החלטה אנושית
+      עכשיו (להזמין חלף, לשלוח טכנאי אחר). תזמון אוטומטי היה מסתיר את הבעיה
+      מאחורי תאריך עתידי.
+    </p>
+  </div>
+
+  <h3>תת־משימה שנכשלה מחייבת הסבר</h3>
+  <p>
+    אי אפשר לסמן ✗ בלי לכתוב למה. השרת מחזיר 400 אם אין
+    <code>comment</code>. זה לא רק אכיפת מדיניות — ההסבר הזה הוא מה שממלא את
+    כרטיס השירות ואת היסטוריית המיקום.
+  </p>
+
+  <h3>כרטיס שירות אוטומטי</h3>
+  <p>
+    ברגע שתת־משימה מסומנת ככושלת, המערכת פותחת <strong>אוטומטית</strong> תקלה
+    בעדיפות גבוהה, ובה כבר יש הכול: החדר, החותמת זמן, שם המשימה ותת־המשימה,
+    וההסבר של העובד.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה אוטומטי ולא טופס נפרד</span>
+    <p>
+      עובד שעומד על סולם לא ימלא טופס נפרד — הוא ידלג. מכיוון שהוא כבר הקליד את
+      הסיבה, בקשה נוספת ממנו היא הקלדה כפולה של אותו מידע. המפרט דורש שהתקלה
+      "תכיל אוטומטית את כל הנתונים הרלוונטיים", וזה בדיוק מה שקורה.
+    </p>
+  </div>
+
+  <h3>סגירת יום</h3>
+  <p>
+    כפתור "סגירת יום" מעביר את כל המשימות שנשארו פתוחות למחר,
+    <strong>ומחצה את תדירותן</strong>.
+  </p>
+
+  <div class="why">
+    <span class="lbl">למה מחצית התדירות</span>
+    <p>
+      המפרט אומר שהמשימות עוברות למחר "בתדירות גבוהה יותר". החציה היא המימוש:
+      משימה שנדחית שוב ושוב מתקצרת מ־30 יום ל־15, ל־7, וכן הלאה — כלומר היא
+      צפה למעלה מהר יותר במקום להישכח. יש הגנה שהמינימום הוא יום אחד.
+    </p>
+  </div>
+
+  <p>
+    שים לב גם: סגירת יום של <em>עובד</em> נוגעת רק במשימות שלו
+    (<code>assigned_to = ?</code>), לא בשל כולם. יש על זה בדיקה.
+  </p>
+</section>
+
+<!-- ═══ 9 ═══ -->
+<section id="s9">
+  <h2><span class="num">09</span>מאגר הידע</h2>
+
+  <p>
+    כל משתמש יכול לכתוב מדריך ולצרף תמונה או סרטון. המדריך נוצר בסטטוס
+    <code>Pending</code> ואינו נראה לאיש עד שמנהל מאשר אותו.
+  </p>
+
+  <p>
+    הסינון הזה קורה <strong>בשאילתה</strong>, לא בממשק: מי שאינו מנהל מקבל
+    <code>WHERE status = 'Approved'</code>. שוב אותו עיקרון — לא מסתירים ב־UI
+    מה שאסור להביא מהשרת.
+  </p>
+
+  <h3>דירוגים וסדר</h3>
+  <p>
+    כל אחד מדרג 1–5, והרשימה ממוינת לפי ממוצע הדירוג ואז לפי תאריך. דירוג חוזר
+    של אותו משתמש <em>מחליף</em> את הקודם ולא מצטבר — נאכף באמצעות אינדקס ייחודי
+    על <code>(guide_id, user_id)</code> יחד עם
+    <code>ON DUPLICATE KEY UPDATE</code>.
+  </p>
+
+  <div class="warn">
+    <span class="lbl">סטייה מודעת מהמפרט</span>
+    <p>
+      המפרט אומר שהמערכת תמיין את המדריכים מחדש "פעם ביום". אצלנו המיון קורה
+      בכל שליפה — כלומר מיידית. זו סטייה לטובה: אין סיבה שדירוג חדש יחכה עד
+      מחר, וזה גם חוסך משימת cron מיותרת.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 10 ═══ -->
+<section id="s10">
+  <h2><span class="num">10</span>ציוד ודוחות</h2>
+
+  <h3>ציוד</h3>
+  <p>
+    כל פריט ציוד רשום לחדר, עם מספר סידורי, סוג, תאריך התקנה, וסטטוס שירות
+    (<code>Operational</code> / <code>NeedsService</code> /
+    <code>OutOfOrder</code>). משימה יכולה להצביע על פריט ציוד ספציפי ולא רק על
+    חדר — וזה מה שמאפשר להיסטוריית התחזוקה להיצמד לנכס עצמו.
+  </p>
+
+  <p>
+    מחיקת פריט <strong>לא</strong> מוחקת את המשימות שהתייחסו אליו; היא רק מנתקת
+    את הקישור. ההיסטוריה שורדת.
+  </p>
+
+  <h3>דוחות</h3>
+  <p>
+    זהו המימוש של "תשאול בסיס הנתונים" שהמפרט מייעד למנהל. לכל טווח תאריכים:
+    שיעור השלמה, משימות לפי עובד בפילוח הצלחה/כישלון, עומס לפי חדר, מצב הציוד,
+    תקלות לפי עדיפות, ותת־המשימות שנכשלות הכי הרבה. השורות עצמן מיוצאות ל־CSV.
+  </p>
+
+  <div class="why">
+    <span class="lbl">פרט קטן שכדאי להכיר</span>
+    <p>
+      שיעור ההשלמה מחזיר <code>null</code> ולא <code>0</code> כשעדיין לא הסתיימה
+      אף משימה. ההבדל חשוב: "0%" משמעו שכל המשימות נכשלו, בעוד ש־<code>null</code>
+      אומר שאין עדיין נתונים. הצגת 0 במקום כלום הייתה שקר סטטיסטי.
+    </p>
+  </div>
+</section>
+
+<!-- ═══ 11 ═══ -->
+<section id="s11">
+  <h2><span class="num">11</span>שירותים חיצוניים</h2>
+
+  <h3>מזג אוויר — שלוש שכבות עמידות</h3>
+  <ol class="body-list">
+    <li><strong>ניסיון חוזר עם השהיה גדלה</strong> — עד 3 ניסיונות, בהמתנה של 1, 2 ואז 4 שניות.</li>
+    <li><strong>דילוג חכם על שגיאות 4xx</strong> — מפתח API שגוי לא ישתפר בניסיון נוסף, אז אין טעם לנסות שוב.</li>
+    <li><strong>נפילה למטמון</strong> — אם הכול נכשל, מוחזר המידע האחרון שהצליח.</li>
+  </ol>
+
+  <div class="why">
+    <span class="lbl">למה השהיה גדלה ולא קבועה</span>
+    <p>
+      אם השירות עמוס, הפצצה שלו בניסיונות בקצב קבוע רק מחמירה את העומס. השהיה
+      שמוכפלת נותנת לו זמן להתאושש. וההבחנה בין 4xx ל־5xx חוסכת שני ניסיונות
+      חסרי טעם במקרה של שגיאת הגדרה.
+    </p>
+  </div>
+
+  <h3>אחסון קבצים — מופשט מהספק</h3>
+  <p>
+    <code>storageService.js</code> בנוי מעל AWS SDK v3 אבל אינו קשור ל־AWS: אם
+    מגדירים <code>STORAGE_ENDPOINT</code>, אותו קוד עובד מול Cloudflare R2,
+    MinIO או DigitalOcean Spaces. מעבר ספק הוא שינוי משתני סביבה, בלי לגעת בקוד.
+  </p>
+
+  <h3>דואר</h3>
+  <p>
+    <code>emailService.js</code> שולח את קישור איפוס הסיסמה דרך SMTP.
+    הטוקן הוא 32 בייט אקראיים קריפטוגרפית, בתוקף שעה, וחד־פעמי.
+  </p>
+</section>
+
+<!-- ═══ 12 ═══ -->
+<section id="s12">
+  <h2><span class="num">12</span>בסיס נתונים ומיגרציות</h2>
+
+  <p>עשר טבלאות:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>טבלה</th><th>תפקיד</th></tr></thead>
+    <tbody>
+      <tr><td><code>companies</code></td><td>דיירים — הגבול שכל השאר מסונן לפיו</td></tr>
+      <tr><td><code>users</code></td><td>משתמשים, תפקיד, סטטוס אישור, התמחות, אזור</td></tr>
+      <tr><td><code>areas</code></td><td>חדרים, מצב תריס, קואורדינטות GPS</td></tr>
+      <tr><td><code>equipment</code></td><td>נכסים ומצב שירות</td></tr>
+      <tr><td><code>missions</code></td><td>משימות תחזוקה מחזוריות</td></tr>
+      <tr><td><code>mission_subtasks</code></td><td>צ׳ק־ליסט, הערות, תמונות</td></tr>
+      <tr><td><code>guides</code> / <code>guide_ratings</code></td><td>מאגר ידע ודירוגים</td></tr>
+      <tr><td><code>alerts</code></td><td>תקלות שדווחו</td></tr>
+      <tr><td><code>logs</code> / <code>weather_logs</code></td><td>יומן פעילות וטלמטריה</td></tr>
+      <tr><td><code>schedules</code></td><td>פעולות מתוזמנות לפי שעה</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>למה יש מיגרציות</h3>
+  <div class="warn">
+    <span class="lbl">מלכודת אמיתית שנתקלנו בה</span>
+    <p>
+      <code>schema.sql</code> רץ <strong>רק</strong> כש־MySQL מאתחל volume חדש
+      לגמרי. בבסיס נתונים קיים הוא לעולם לא ירוץ — כלומר הטבלאות החדשות פשוט לא
+      ייווצרו, בשקט, בלי שגיאה. לכן כל שינוי סכימה נשלח כמיגרציה ממוספרת שאפשר
+      להריץ שוב ושוב בבטחה (<code>CREATE TABLE IF NOT EXISTS</code>, ובדיקת
+      <code>information_schema</code> לפני הוספת עמודה).
+    </p>
+  </div>
+
+  <p>
+    שלוש מיגרציות עד כה: <code>001</code> משימות ומדריכים,
+    <code>002</code> קואורדינטות GPS, <code>003</code> חברות, הרשמה וציוד.
+  </p>
+
+  <h3>שאילתות מפורמטות תמיד</h3>
+  <pre><code>// ✓ נכון — הערך עובר כפרמטר
+db.query('SELECT * FROM users WHERE username = ?', [name]);
+
+// ✗ פרצת SQL injection
+db.query(`SELECT * FROM users WHERE username = '${name}'`);</code></pre>
+
+  <p>
+    כל שאילתה במערכת משתמשת בסימני <code>?</code>. גם התאריכים בדוחות עוברים
+    כפרמטרים ולא מוזרקים למחרוזת.
+  </p>
+</section>
+
+<!-- ═══ 13 ═══ -->
+<section id="s13">
+  <h2><span class="num">13</span>אפליקציית אנדרואיד</h2>
+
+  <p>
+    המפרט דורש אפליקציית אנדרואיד. במקום לכתוב אפליקציה שנייה, עטפנו את קוד
+    ה־React הקיים ב־<strong>Capacitor</strong> וקיבלנו APK להתקנה.
+  </p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th></th><th>Capacitor</th><th>React Native</th></tr></thead>
+    <tbody>
+      <tr><td>זמן פיתוח</td><td>יום–יומיים</td><td>2–4 שבועות</td></tr>
+      <tr><td>בסיס קוד</td><td>אחד, משותף</td><td>שני ממשקים לתחזק</td></tr>
+      <tr><td>מצלמה / GPS</td><td>תוספים נייטיב</td><td>נייטיב</td></tr>
+      <tr><td>מה נזרק</td><td>כלום</td><td>כל ה־JSX וכל ה־CSS</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="why">
+    <span class="lbl">הנימוק המלא לבחירה</span>
+    <p>
+      המפרט עצמו מתאר <em>שני</em> לקוחות: אפליקציה לאיש השדה, וממשק ניהול
+      ל־Windows 10. מעבר ל־React Native היה מייצר את הראשון אבל מחייב לתחזק
+      ממשק נפרד לשני. Capacitor נותן את שניהם מקוד אחד. הפער האמיתי היה
+      <em>אריזה</em>, לא פונקציונליות — היכולות הנדרשות (מצלמה, מיקום) כבר עבדו.
+    </p>
+  </div>
+
+  <h3>הבדל טכני שחשוב להכיר</h3>
+  <p>
+    בפיתוח, שרת Vite מעביר <code>/api</code> לשרת (proxy), ולכן הכתובות יחסיות.
+    באפליקציה הארוזה <strong>אין proxy</strong> — הדף מוגש מתוך האפליקציה
+    עצמה, ולכן הכתובות חייבות להיות מלאות. לכן יש
+    <code>.env.android</code> נפרד, ו־<code>config.js</code> מדפיס שגיאה
+    בהפעלה אם נצרבה בטעות כתובת יחסית.
+  </p>
+
+  <p>
+    יתרון נוסף: האפליקציה הנייטיב היא "secure context" מטבעה, כך שמצלמה ו־GPS
+    עובדים בלי HTTPS — בעוד שבדפדפן נייד הם חסומים ללא TLS.
+  </p>
+</section>
+
+<!-- ═══ 14 ═══ -->
+<section id="s14">
+  <h2><span class="num">14</span>אסטרטגיית בדיקות</h2>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>חבילה</th><th>כמות</th><th>מה נבדק</th></tr></thead>
+    <tbody>
+      <tr><td>Decision Engine</td><td>19</td><td>תנאי קיצון, ציון, מדרגות, קצוות</td></tr>
+      <tr><td>Weather Service</td><td>4</td><td>ניסיון חוזר, 4xx, מטמון</td></tr>
+      <tr><td>API Integration</td><td>15</td><td>התחברות, RBAC</td></tr>
+      <tr><td>Missions &amp; Guides</td><td>26</td><td>מחזור משימה, אישורים, GPS</td></tr>
+      <tr><td>Signup / Equipment / Reports</td><td>25</td><td>הרשמה, ציוד, בידוד דיירים</td></tr>
+      <tr><td>Client (Vitest)</td><td>12</td><td>דירוג עובדים והתאמת אזור</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>למה בסיס הנתונים מדומה (mocked)</h3>
+  <div class="why">
+    <span class="lbl">ההחלטה</span>
+    <p>
+      בבדיקות האינטגרציה החלפנו את מאגר ה־MySQL באובייקט מדומה. התוצאה: הבדיקות
+      רצות בשניות, לא דורשות DB פעיל, ואינן נכשלות בגלל נתונים שנשארו מריצה
+      קודמת. מה שנבדק הוא המסלול המלא — HTTP → route → middleware → controller —
+      וזה בדיוק החלק שבו מתרחשים באגים של הרשאות וולידציה.
+    </p>
+  </div>
+
+  <p>
+    בכמה בדיקות אנחנו בודקים לא רק את קוד התשובה אלא <em>מה נשלח לבסיס
+    הנתונים</em> — למשל שה־<code>companyId</code> באמת הגיע כפרמטר לשאילתה. זה
+    מה שמאמת את בידוד הדיירים ולא רק את התנהגות ה־UI.
+  </p>
+</section>
+
+<!-- ═══ 15 ═══ -->
+<section id="s15">
+  <h2><span class="num">15</span>אבטחה — סיכום</h2>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>אמצעי</th><th>מפני מה מגן</th></tr></thead>
+    <tbody>
+      <tr><td>bcrypt (10 סבבים)</td><td>סיסמאות אינן ניתנות לשחזור גם אם ה־DB דלף</td></tr>
+      <tr><td>JWT חתום, 24 שעות</td><td>אי אפשר לזייף תפקיד או חברה</td></tr>
+      <tr><td>RBAC בכל נתיב</td><td>הרשאות נאכפות בשרת, לא ב־UI</td></tr>
+      <tr><td>סינון לפי חברה</td><td>בידוד בין דיירים ברמת הנתונים</td></tr>
+      <tr><td>שאילתות מפורמטות</td><td>SQL injection</td></tr>
+      <tr><td>Helmet</td><td>כותרות HTTP מסוכנות</td></tr>
+      <tr><td>Rate limiting</td><td>ניחוש סיסמאות והצפה</td></tr>
+      <tr><td>סינון סוג קובץ + 5MB</td><td>העלאת קבצים זדוניים</td></tr>
+      <tr><td>טוקן איפוס חד־פעמי</td><td>שימוש חוזר בקישור שדלף</td></tr>
+      <tr><td>סטטוס נבדק אחרי סיסמה</td><td>מניעת גילוי שמות משתמש קיימים</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ═══ 16 ═══ -->
+<section id="s16">
+  <h2><span class="num">16</span>החלטות מפתח וההתלבטויות</h2>
+
+  <p>
+    אלה ההחלטות שבהן הייתה באמת חלופה סבירה. אם שואלים "למה ככה", זה מה שצריך
+    לענות:
+  </p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>החלטה</th><th>החלופה</th><th>הנימוק</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Capacitor</td>
+        <td>React Native</td>
+        <td>המפרט דורש גם ווב וגם מובייל; קוד אחד במקום שניים, בשבריר מהזמן</td>
+      </tr>
+      <tr>
+        <td>בידוד דיירים בשאילתה</td>
+        <td>סינון בממשק</td>
+        <td>סינון ב־UI אינו אבטחה — הנתונים כבר הגיעו לדפדפן</td>
+      </tr>
+      <tr>
+        <td>כרטיס שירות אוטומטי</td>
+        <td>טופס דיווח ידני</td>
+        <td>העובד כבר הקליד את הסיבה; טופס נוסף היה נדלג</td>
+      </tr>
+      <tr>
+        <td>התאמה לפי טוקנים</td>
+        <td>בדיקת מחרוזת־משנה</td>
+        <td>"בניין 216" לא מכיל את "כיתה 216" כמחרוזת, אבל חולק את "216"</td>
+      </tr>
+      <tr>
+        <td>MySQL</td>
+        <td>Postgres (כפי שכתוב ב־One-Pager)</td>
+        <td>מעבר היה נוגע בכל שאילתה ללא רווח פונקציונלי; המסמכים שלכם עצמם סותרים בנקודה הזו</td>
+      </tr>
+      <tr>
+        <td>מיגרציות ממוספרות</td>
+        <td>עריכת <code>schema.sql</code></td>
+        <td><code>schema.sql</code> לא רץ על DB קיים — השינוי היה נעלם בשקט</td>
+      </tr>
+      <tr>
+        <td>מדרגות + היסטרזיס</td>
+        <td>מיקום רציף</td>
+        <td>מונע תזוזה מתמדת ובלאי של המנוע</td>
+      </tr>
+      <tr>
+        <td>DB מדומה בבדיקות</td>
+        <td>DB אמיתי לבדיקות</td>
+        <td>מהיר, דטרמיניסטי, ובודק בדיוק את שכבת ה־HTTP וההרשאות</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer class="end">
+  <p>
+    המסמך מתאר את המערכת כפי שהיא בענף
+    <code>feature/missions-and-knowledge-base</code>. כדי לראות את הקוד עצמו
+    לצד ההסברים: <code>git log -p main..HEAD</code>.
+  </p>
+</footer>
+
+</div>
