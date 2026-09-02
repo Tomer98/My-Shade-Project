@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  server:
+    name: Server tests
     runs-on: ubuntu-latest
 
     steps:
@@ -17,12 +18,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
 
-      - name: Install server dependencies
+      - name: Install dependencies
         working-directory: ./server
-        run: npm install
+        run: npm ci
 
+      # The database is mocked in the integration suite, so these values only
+      # need to exist — nothing connects to a real MySQL instance here.
       - name: Run tests
         working-directory: ./server
         env:
@@ -34,3 +39,36 @@ jobs:
           WEATHER_API_KEY: fake_key
           WEATHER_CITY: Holon,IL
         run: npm test
+
+  client:
+    name: Client tests & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./client
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run tests
+        working-directory: ./client
+        run: npm test
+
+      # Catches an import or syntax error that the unit tests would miss
+      - name: Build
+        working-directory: ./client
+        run: npm run build
