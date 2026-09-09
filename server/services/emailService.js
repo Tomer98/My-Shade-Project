@@ -5,13 +5,19 @@
  */
 const nodemailer = require('nodemailer');
 
+// Google presents an app password as four space-separated groups. The spaces
+// are display formatting, not part of the secret, but a value pasted straight
+// from that screen keeps them and authentication fails with a bare
+// "Username and Password not accepted" that says nothing about why.
+const smtpPassword = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT),
     secure: false, // TLS via STARTTLS (port 587)
     auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        pass: smtpPassword,
     },
 });
 

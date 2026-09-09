@@ -170,7 +170,16 @@ exports.forgotPassword = async (req, res) => {
             [token, expires, email]
         );
 
-        await sendPasswordResetEmail(email, token);
+        // A send failure must not change the response. Returning an error only
+        // when the address exists would tell a caller exactly which addresses
+        // are registered — undoing the generic reply above, which exists to
+        // prevent that. The failure is loud in the log instead, where it
+        // belongs, since it is an operator problem and not the caller's.
+        try {
+            await sendPasswordResetEmail(email, token);
+        } catch (mailError) {
+            console.error('❌ Password reset email failed to send:', mailError.message);
+        }
 
         return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     } catch (error) {

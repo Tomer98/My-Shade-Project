@@ -62,8 +62,10 @@ async function ensureUser(username, { email, role, status, speciality, work_area
         // account on the password this run printed. Without it a previously
         // seeded account would silently keep an older one.
         await db.query(
-            'UPDATE users SET password = ?, role = ?, status = ?, speciality = ?, work_area = ? WHERE id = ?',
-            [password, role, status, speciality, work_area, existing[0].id]
+            `UPDATE users SET password = ?, email = ?, role = ?, status = ?,
+                    speciality = ?, work_area = ?, company_id = ?
+             WHERE id = ?`,
+            [password, email, role, status, speciality, work_area, company_id, existing[0].id]
         );
         return existing[0].id;
     }
