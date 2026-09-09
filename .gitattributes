@@ -1,17 +1,14 @@
-/**
- * @file .gitattributes
- * @description Global Git configuration for file handling and line-ending normalization.
- * Ensures compatibility between Windows (CRLF) and Linux/Docker (LF) environments.
- */
+# Global Git configuration for file handling and line-ending normalization.
+# Ensures compatibility between Windows (CRLF) and Linux/Docker (LF) environments.
+#
+# Note: .gitattributes only supports "#" comments. Block comments are parsed as
+# patterns and rejected, which is what this file used to do on every git command.
 
-/** * @setting text=auto
- * @desc Auto-detect text files and perform LF normalization on commit.
- */
+# Auto-detect text files and perform LF normalization on commit.
 * text=auto
 
-/** * @group Linux/Docker Compatibility
- * @desc Force LF (Line Feed) for scripts and config files to prevent execution errors in containers.
- */
+# Linux/Docker compatibility: force LF for scripts and config files, so they do
+# not fail to execute inside containers.
 *.sh text eol=lf
 *.js text eol=lf
 *.json text eol=lf
@@ -20,10 +17,10 @@
 Dockerfile text eol=lf
 .dockerignore text eol=lf
 
-/** * @group Binary Files
- * @desc Ensure images and other binary assets are never modified by Git's text normalization.
- */
+# Binary assets are never touched by text normalization.
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.ico binary
+*.svg text eol=lf
+*.pdf binary
