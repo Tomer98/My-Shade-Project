@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "build:android": "vite build --mode android && cap sync android",
-    "android:apk": "npm run build:android && cd android && gradlew.bat assembleDebug",
+    "android:apk": "npm run build:android && node scripts/build-apk.mjs",
     "android:open": "cap open android"
   },
   "dependencies": {
