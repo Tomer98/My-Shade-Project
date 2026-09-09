@@ -26,8 +26,17 @@ const TAG = '[demo]'; // marks rows this script owns
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD
     || crypto.randomBytes(9).toString('base64url');
 
+/** Returns the id of a company, creating it when absent. */
+async function ensureCompany(name) {
+    const [existing] = await db.query('SELECT id FROM companies WHERE name = ?', [name]);
+    if (existing.length > 0) return existing[0].id;
+
+    const [res] = await db.query('INSERT INTO companies (name) VALUES (?)', [name]);
+    return res.insertId;
+}
+
 /** Returns the id of a room, creating it when absent. */
-async function ensureRoom(room, description, lat, lng, coords) {
+async function ensureRoom(room, description, lat, lng, coords, companyId = 1) {
     const [existing] = await db.query('SELECT id FROM areas WHERE room = ?', [room]);
     if (existing.length > 0) {
         await db.query('UPDATE areas SET latitude = ?, longitude = ? WHERE id = ?',
@@ -37,14 +46,14 @@ async function ensureRoom(room, description, lat, lng, coords) {
 
     const [res] = await db.query(
         `INSERT INTO areas (room, description, map_coordinates, latitude, longitude, company_id, shade_state, current_position)
-         VALUES (?, ?, ?, ?, ?, 1, 'AUTO', 0)`,
-        [room, description, JSON.stringify(coords), lat, lng]
+         VALUES (?, ?, ?, ?, ?, ?, 'AUTO', 0)`,
+        [room, description, JSON.stringify(coords), lat, lng, companyId]
     );
     return res.insertId;
 }
 
 /** Returns the id of a user, creating it when absent. */
-async function ensureUser(username, { email, role, status, speciality, work_area }) {
+async function ensureUser(username, { email, role, status, speciality, work_area, company_id = 1 }) {
     const [existing] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
     const password = await bcrypt.hash(DEMO_PASSWORD, 10);
 
@@ -60,8 +69,8 @@ async function ensureUser(username, { email, role, status, speciality, work_area
     }
     const [res] = await db.query(
         `INSERT INTO users (username, password, email, role, status, speciality, work_area, company_id, is_available)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, TRUE)`,
-        [username, password, email, role, status, speciality, work_area]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+        [username, password, email, role, status, speciality, work_area, company_id]
     );
     return res.insertId;
 }
@@ -245,8 +254,22 @@ async function seed() {
          VALUES (?, ?, ?, 'Medium', 'Open')`,
         [auditorium, dana, `${TAG} Shade on the east side rattles audibly in wind`]);
 
+    // ── A second tenant, so the isolation can actually be demonstrated ───
+    // Its admin must see this company's single room and nothing of the first
+    // company's — which is the only way to show that the separation is enforced
+    // in the query rather than hidden in the interface.
+    const other = await ensureCompany('Northside Facilities Ltd.');
+    const otherAdmin = await ensureUser('Rita', {
+        email: 'rita@northside.example', role: 'admin', status: 'Active',
+        speciality: null, work_area: null, company_id: other,
+    });
+    await ensureRoom('Warehouse B', 'Northside depot, roof-mounted units',
+        32.0611, 34.7742, { top: 40.0, left: 45.0 }, other);
+    console.log(`   second company ready (Rita — sees only its own room)`);
+
     console.log('\n✅ Demo data ready.\n');
-    console.log(`   Sign in as  Tom  /  ${DEMO_PASSWORD}`);
+    console.log(`   Sign in as  Tom   /  ${DEMO_PASSWORD}   (${'HIT'})`);
+    console.log(`   Sign in as  Rita  /  ${DEMO_PASSWORD}   (Northside — isolation demo)`);
     if (!process.env.DEMO_PASSWORD) {
         console.log('   (generated for this run — set DEMO_PASSWORD to choose your own)');
     }
