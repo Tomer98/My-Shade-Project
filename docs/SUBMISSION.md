@@ -47,7 +47,6 @@
 | `server/database/migrations/` | שלוש מיגרציות ממוספרות (קידום מסד קיים) |
 | `server/__tests__/` | 89 בדיקות — Jest ו-Supertest |
 | `README.md` | תיעוד מלא: פיצ׳רים, נקודות קצה, סכימה, פריסה |
-| `docs/ONE_PAGER.md` | סיכום עמוד אחד |
 | `smart_shade_architecture.svg` | דיאגרמת ארכיטקטורה |
 | `.github/workflows/ci.yml` | אינטגרציה רציפה — שתי סוויטות ובנייה מלאה |
 
