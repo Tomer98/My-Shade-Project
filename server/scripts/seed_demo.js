@@ -118,7 +118,11 @@ async function seed() {
     console.log('   rooms ready');
 
     // ── People ──────────────────────────────────────────────────────────
-    const tom = await ensureUser('Tom', { email: 'bareltom33@gmail.com', role: 'admin',
+    // Set DEMO_ADMIN_EMAIL to a mailbox you own if you want to demo the
+    // password-reset mail actually arriving; otherwise the admin gets a
+    // placeholder address like the rest of the seeded people.
+    const tom = await ensureUser('Tom', {
+        email: process.env.DEMO_ADMIN_EMAIL || 'admin@campus.edu', role: 'admin',
         status: 'Active', speciality: null, work_area: null });
     const bob = await ensureUser('Bob', { email: 'bob@campus.edu', role: 'maintenance',
         status: 'Active', speciality: 'Electrical', work_area: 'Classroom 216' });
