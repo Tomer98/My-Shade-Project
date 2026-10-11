@@ -46,3 +46,8 @@ Thumbs.db
 dist-android/
 *.apk
 *.aab
+
+# Local AI-assistant tooling. Kept out of the repository: it is machine-local
+# configuration, and a global ignore rule does not travel with a clone.
+.claude/
+CLAUDE.md
