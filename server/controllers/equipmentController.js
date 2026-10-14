@@ -26,6 +26,10 @@ exports.getAllEquipment = async (req, res) => {
             conditions.push('e.status = ?');
             params.push(req.query.status);
         }
+        if (req.query.search) {
+            conditions.push('e.name LIKE ?');
+            params.push(`%${req.query.search}%`);
+        }
 
         const [rows] = await db.query(
             `SELECT e.*, a.room AS area_name,
