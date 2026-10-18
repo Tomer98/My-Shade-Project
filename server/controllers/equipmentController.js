@@ -11,7 +11,7 @@ const VALID_STATUSES = ['Operational', 'NeedsService', 'OutOfOrder'];
 /**
  * List equipment for the caller's company, with its room and a count of the
  * missions still outstanding against it.
- * Supports ?area_id= and ?status= filters.
+ * Supports ?area_id=, ?status= and ?search= filters.
  */
 exports.getAllEquipment = async (req, res) => {
     try {
