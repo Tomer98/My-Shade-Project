@@ -267,6 +267,17 @@ describe('Equipment', () => {
         expect(db.query.mock.calls[0][0]).toMatch(/e\.name LIKE \?/);
         expect(db.query.mock.calls[0][1]).toEqual([9, '%mot%']);
     });
+
+    test('LIKE wildcards in the search term are escaped', async () => {
+        db.query.mockResolvedValueOnce([[]]);
+
+        await request(app)
+            .get('/api/equipment?search=Valve_A')
+            .set('Authorization', `Bearer ${makeToken('planner', 9)}`);
+
+        expect(db.query.mock.calls[0][0]).toMatch(/e\.name LIKE \?/);
+        expect(db.query.mock.calls[0][1]).toEqual([9, '%Valve\\_A%']);
+    });
 });
 
 // ============================================================
