@@ -11,7 +11,7 @@ const VALID_STATUSES = ['Operational', 'NeedsService', 'OutOfOrder'];
 /**
  * List equipment for the caller's company, with its room and a count of the
  * missions still outstanding against it.
- * Supports ?area_id= and ?status= filters.
+ * Supports ?area_id=, ?status= and ?search= filters.
  */
 exports.getAllEquipment = async (req, res) => {
     try {
@@ -25,6 +25,11 @@ exports.getAllEquipment = async (req, res) => {
         if (req.query.status) {
             conditions.push('e.status = ?');
             params.push(req.query.status);
+        }
+        if (typeof req.query.search === 'string' && req.query.search) {
+            const term = req.query.search.replaceAll('%', '\\%').replaceAll('_', '\\_');
+            conditions.push('e.name LIKE ?');
+            params.push(`%${term}%`);
         }
 
         const [rows] = await db.query(

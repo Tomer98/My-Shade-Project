@@ -12,7 +12,7 @@ router.use(verifyToken);
 
 /**
  * @route   GET /
- * @desc    List equipment (supports ?area_id= and ?status=)
+ * @desc    List equipment (supports ?area_id=, ?status= and ?search=)
  * @access  Private (All authenticated users)
  */
 router.get('/', equipmentController.getAllEquipment);
